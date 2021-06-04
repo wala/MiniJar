@@ -39,7 +39,6 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.slicer.SDG;
 import com.ibm.wala.ipa.slicer.Slicer.ControlDependenceOptions;
 import com.ibm.wala.ipa.slicer.Slicer.DataDependenceOptions;
-//import com.ibm.wala.shrike.shrikeCT.ClassWriter.CWStringItem;
 import com.ibm.wala.shrikeBT.Decoder.InvalidBytecodeException;
 import com.ibm.wala.shrikeBT.shrikeCT.ClassInstrumenter;
 import com.ibm.wala.shrikeBT.shrikeCT.OfflineInstrumenter;
@@ -113,7 +112,7 @@ public class MiniJar {
    
     while ((ci = instrumenter.nextClass()) != null) {
       try {
-        cw.doClass(ci, cg);
+        cw.processClass(ci, cg);
       } catch (UnknownAttributeException ex) {
         System.err.println(ex.getMessage() + " in " + instrumenter.getLastClassResourceName());
       }
@@ -123,74 +122,7 @@ public class MiniJar {
     instrumenter.close();
   }
 
-//  private Set<CGNode> getNodes(CallGraph cg) {
-//	  Set<CGNode> ret = new HashSet<CGNode>();
-//	  cg.forEach(n -> ret.add(n));  
-//	  return ret;
-//  }
-//  private Element transformAttribute(ClassReader cr, int m, ClassWriter w, AttrIterator iter)
-//      throws InvalidClassFileException, UnknownAttributeException, InvalidBytecodeException {
-//	  
-//	  int offset = iter.getRawOffset();
-//	  int end = offset + iter.getRawSize();
-//      return new ClassWriter.RawElement(cr.getBytes(), offset, end - offset);
-//  }
-//
-//  private Element[] collectAttributes(ClassReader cr, int m, ClassWriter w, AttrIterator iter)
-//      throws InvalidClassFileException, UnknownAttributeException, InvalidBytecodeException {
-//    Element[] elems = new Element[iter.getRemainingAttributesCount()];
-//    for (int i = 0; i < elems.length; i++) {
-//      elems[i] = transformAttribute(cr, m, w, iter);
-//      iter.advance();
-//    }
-//    return elems;
-//  }
-
-//  private static int copyEntry(ConstantPoolParser cp, ClassWriter w, int i)
-//      throws InvalidClassFileException {
-//    byte t = cp.getItemType(i);
-//    switch (t) {
-//      case ClassConstants.CONSTANT_String:
-//        return w.addCPString(cp.getCPString(i));
-//      case ClassConstants.CONSTANT_Class:
-//        return w.addCPClass(cp.getCPClass(i));
-//      case ClassConstants.CONSTANT_FieldRef:
-//        return w.addCPFieldRef(cp.getCPRefClass(i), cp.getCPRefName(i), cp.getCPRefType(i));
-//      case ClassConstants.CONSTANT_InterfaceMethodRef:
-//        return w.addCPInterfaceMethodRef(
-//            cp.getCPRefClass(i), cp.getCPRefName(i), cp.getCPRefType(i));
-//      case ClassConstants.CONSTANT_MethodRef:
-//        return w.addCPMethodRef(cp.getCPRefClass(i), cp.getCPRefName(i), cp.getCPRefType(i));
-//      case ClassConstants.CONSTANT_NameAndType:
-//        return w.addCPNAT(cp.getCPNATName(i), cp.getCPNATType(i));
-//      case ClassConstants.CONSTANT_Integer:
-//        return w.addCPInt(cp.getCPInt(i));
-//      case ClassConstants.CONSTANT_Float:
-//        return w.addCPFloat(cp.getCPFloat(i));
-//      case ClassConstants.CONSTANT_Long:
-//        return w.addCPLong(cp.getCPLong(i));
-//      case ClassConstants.CONSTANT_Double:
-//        return w.addCPDouble(cp.getCPDouble(i));
-//      case ClassConstants.CONSTANT_Utf8:
-//        return w.addCPUtf8(cp.getCPUtf8(i));
-//      case ClassConstants.CONSTANT_InvokeDynamic:
-//    	return w.addCPInvokeDynamic(cp.getCPDynBootstrap(i), cp.getCPDynName(i), cp.getCPDynType(i));
-//      case ClassConstants.CONSTANT_MethodHandle:
-//    	return w.addCPMethodHandle(new ReferenceToken(cp.getCPHandleKind(i), cp.getCPHandleClass(i), cp.getCPHandleName(i), cp.getCPHandleType(i)));
-//      default:
-//        return -1;
-//        
-//    }
-//  }
-
-  private void doClass(final ClassInstrumenter ci, Set<String> cg) throws Exception {
-    /*
-     * Our basic strategy is to make the first element of the constant pool be the copyright string (as a UTF8 constant pool item).
-     * This requires us to parse and emit any class data which might refer to that constant pool item (#1). We will assume that any
-     * attribute which refers to that constant pool item must contain the byte sequence '00 01', so we can just copy over any
-     * attributes which don't contain that byte sequence. If we detect an unknown attribute type containing the sequence '00 01',
-     * then we will abort.
-     */
+  private void processClass(final ClassInstrumenter ci, Set<String> cg) throws Exception {
     ClassReader cr = ci.getReader();
     
     ClassWriter cw =
@@ -244,46 +176,12 @@ public class MiniJar {
               }
             };
     
-
-//    w.setForceAddCPEntries(true);
-//
-//    ConstantPoolParser cp = cr.getCP();
-//    int CPCount = cp.getItemCount();
     String className = cr.getName();
-//    System.out.println("doClass: " + cr.getName());
-//
-//    for (int i = 1; i < CPCount; i++) {
-//      int r = copyEntry(cp, w, i);
-//      if (r != -1 && r != i) {
-//        System.err.println("Invalid constant pool index allocated: " + r + ", expected " + i);
-//      }
-//    }
-//    w.setForceAddCPEntries(false);
 
-
-    // emit class
-//    w.setMajorVersion(cr.getMajorVersion());
-//    w.setMinorVersion(cr.getMinorVersion());
-//    w.setAccessFlags(cr.getAccessFlags());
-//    w.setName(cr.getName());
-//    w.setSuperName(cr.getSuperName());
-//    w.setInterfaceNames(cr.getInterfaceNames());
-//
     ClassReader.AttrIterator iter = new ClassReader.AttrIterator();
-//
-//    int fieldCount = cr.getFieldCount();
-//    for (int i = 0; i < fieldCount; i++) {
-//      cr.initFieldAttributeIterator(i, iter);
-//      w.addField(
-//          cr.getFieldAccessFlags(i),
-//          cr.getFieldName(i),
-//          cr.getFieldType(i),
-//          collectAttributes(cr, i, w, iter));
-//    }
 
     int methodCount = cr.getMethodCount();
     
-
     for (int i = 0; i < methodCount; i++) {
       cr.initMethodAttributeIterator(i, iter);
       String methodName = cr.getMethodName(i);
@@ -292,38 +190,12 @@ public class MiniJar {
       if (!isReachable(cg, className, methodName, methodType)) {
     	  ci.deleteMethod(i);
       }
-      
-   
-      
-      //System.out.println("method: " + methodName + " with type: " + methodType);
-//      if (isReachable(cg, className, methodName, methodType)) {
-//    	  w.addMethod(
-//    			  cr.getMethodAccessFlags(i),
-//    			  methodName,
-//    			  methodType,
-//    			  collectAttributes(cr, i, w, iter));
-//      } 
     }
-
-//    cr.initClassAttributeIterator(iter);
-//    for (; iter.isValid(); iter.advance()) {
-//      w.addClassAttribute(transformAttribute(cr, 0, w, iter));
-//    }
 
     ci.emitClass(cw);
     instrumenter.outputModifiedClass(ci, cw);
-    
-   
   }
 
-  private static String getMethodString (String className, String methodName, String methodType) {
-	  String ret = className + "#" + methodName + methodType;
-	  if (className.startsWith("L")) {
-		  return ret;
-	  }
-	  return "L" + ret;
-  }
-  
   private boolean isReachable(Set<String> cg, String className, String methodName, String methodType) {
 	  String desc = getMethodString(className, methodName, methodType);
 	  boolean reachable = cg.contains(desc);
@@ -358,31 +230,73 @@ public class MiniJar {
 	// you can dial down reflection handling if you like
 	options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NONE);
 	AnalysisCache cache = new AnalysisCacheImpl();
-	// other builders can be constructed with different Util methods
-	//CallGraphBuilder builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
-	//CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
-	CallGraphBuilder builder = Util. makeRTABuilder(options, cache, cha, scope);
-	//CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
-	//CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
+	
+  CallGraphBuilder builder = Util. makeRTABuilder(options, cache, cha, scope);
+  //CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
+  //CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
+  //CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
+  //CallGraphBuilder builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+	
 	System.out.println("building call graph...");
 	CallGraph cg = builder.makeCallGraph(options, null);
 	System.out.println("done! " + cg.getNumberOfNodes());
 	
 	Set<String> allMethods = new HashSet<String>();
-	cg.forEach(n -> allMethods.add(getMethodDescriptor(n.getMethod())));
-	System.out.println("number of methods: " + allMethods.size());
+	cg.forEach(n -> processMethod(allMethods, n, cha));
+  System.out.println("number of methods: " + allMethods.size());
 	
-
 	return allMethods;
   }
-  
-  private static String getMethodDescriptor(IMethod m) {
-//	  IClass klass = m.getDeclaringClass();
-//	  klass.
-//	  m.getClassHierarchy().get
-	  if (m.getName().toString().equals("area")) {
-		  System.out.println("**** " + getMethodString(m.getDeclaringClass().getName().toString(), m.getName().toString(), m.getDescriptor().toString()));
+
+  private static void processMethod(Set<String> allMethods, CGNode n, IClassHierarchy cha) {
+    IMethod m = n.getMethod();
+    allMethods.add(getMethodDescriptor(m));
+    allMethods.addAll(getSuperMethods(m,cha));
+  }
+
+  private static Set<String> getSuperMethods(IMethod m, IClassHierarchy cha) {
+    Set<String> ret = new HashSet<String>();
+    Set<IClass> superClasses = new HashSet<IClass>();
+    IClass superClass = m.getDeclaringClass().getSuperclass();
+    
+    while(superClass != null) {
+      superClasses.add(superClass);
+      superClass = superClass.getSuperclass();
+    }
+
+    for(IClass klass: superClasses) {
+      String superMethod = getSuperMethod(klass, getMethodName(m));
+      if (superMethod != null) {
+        ret.add(superMethod);
+      }
+    }
+
+    return ret;
+  }
+
+  private static String getSuperMethod(IClass klass, String methodName) {
+    for (IMethod m: klass.getAllMethods()) {
+      String superMethodName = getMethodName(m);
+      if (superMethodName.equals(methodName)) {
+        return getMethodDescriptor(m);
+      }
+    }
+    return null;
+  }
+
+  private static String getMethodString (String className, String methodName, String methodType) {
+	  String ret = className + "#" + methodName + methodType;
+	  if (className.startsWith("L")) {
+		  return ret;
 	  }
+	  return "L" + ret;
+  }
+
+  private static String getMethodName(IMethod m) {
+    return m.getName().toString() +  m.getDescriptor().toString();
+  }
+
+  private static String getMethodDescriptor(IMethod m) {
 	  return getMethodString(m.getDeclaringClass().getName().toString(), m.getName().toString(), m.getDescriptor().toString());
   }
   

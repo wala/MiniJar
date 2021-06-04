@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Launch MiniJar - Example",
+            "request": "launch",
+            "mainClass": "minijar.MiniJar",
+            "projectName": "lib",
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/lib/src/main/resources/Example-0.1.0.jar  -m Lshape/Example -d wala.data.example.txt -o out.jar"
+        },
+        {
+            "type": "java",
+            "name": "Launch MiniJar - Getting Started",
+            "request": "launch",
+            "mainClass": "minijar.MiniJar",
+            "projectName": "lib",
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/lib/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -o out.jar"
+        },
+        {
+            "type": "java",
+            "name": "Launch MiniJar - Responder Simulator",
+            "request": "launch",
+            "mainClass": "minijar.MiniJar",
+            "projectName": "lib",
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/lib/src/main/resources/responder-simulator.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
+        }
+    ]
+}
