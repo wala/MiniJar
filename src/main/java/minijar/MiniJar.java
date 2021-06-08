@@ -15,11 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 
-//import com.ibm.wala.util.config.AnalysisScopeReader;
-import com.ibm.wala.core.util.config.AnalysisScopeReader;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.classLoader.Language;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
 import com.ibm.wala.core.util.warnings.Warnings;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
@@ -32,26 +29,16 @@ import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
 import com.ibm.wala.ipa.callgraph.impl.Util;
-import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
-import com.ibm.wala.ipa.slicer.SDG;
-import com.ibm.wala.ipa.slicer.Slicer.ControlDependenceOptions;
-import com.ibm.wala.ipa.slicer.Slicer.DataDependenceOptions;
-import com.ibm.wala.shrike.shrikeBT.Decoder.InvalidBytecodeException;
 import com.ibm.wala.shrike.shrikeBT.shrikeCT.ClassInstrumenter;
 import com.ibm.wala.shrike.shrikeBT.shrikeCT.OfflineInstrumenter;
-import com.ibm.wala.shrike.shrikeCT.ClassConstants;
 import com.ibm.wala.shrike.shrikeCT.ClassReader;
-import com.ibm.wala.shrike.shrikeCT.ClassReader.AttrIterator;
 import com.ibm.wala.shrike.shrikeCT.ClassWriter;
-import com.ibm.wala.shrike.shrikeCT.ClassWriter.Element;
 import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
-import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser.ReferenceToken;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.config.FileOfClasses;
-import com.ibm.wala.shrike.shrikeCT.InvalidClassFileException;
 
 public class MiniJar {
   private static final String USAGE =

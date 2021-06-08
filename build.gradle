@@ -29,7 +29,7 @@ dependencies {
 
         
     implementation "com.ibm.wala:com.ibm.wala.shrike:${walaVersion}"
-   
+    implementation "com.ibm.wala:com.ibm.wala.util:${walaVersion}"
     implementation "com.ibm.wala:com.ibm.wala.core.java11:0.0.1-SNAPSHOT"
     
     
