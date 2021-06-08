@@ -39,19 +39,19 @@ import com.ibm.wala.ipa.cha.IClassHierarchy;
 import com.ibm.wala.ipa.slicer.SDG;
 import com.ibm.wala.ipa.slicer.Slicer.ControlDependenceOptions;
 import com.ibm.wala.ipa.slicer.Slicer.DataDependenceOptions;
-import com.ibm.wala.shrikeBT.Decoder.InvalidBytecodeException;
-import com.ibm.wala.shrikeBT.shrikeCT.ClassInstrumenter;
-import com.ibm.wala.shrikeBT.shrikeCT.OfflineInstrumenter;
-import com.ibm.wala.shrikeCT.ClassConstants;
-import com.ibm.wala.shrikeCT.ClassReader;
-import com.ibm.wala.shrikeCT.ClassReader.AttrIterator;
-import com.ibm.wala.shrikeCT.ClassWriter;
-import com.ibm.wala.shrikeCT.ClassWriter.Element;
-import com.ibm.wala.shrikeCT.ConstantPoolParser;
-import com.ibm.wala.shrikeCT.ConstantPoolParser.ReferenceToken;
+import com.ibm.wala.shrike.shrikeBT.Decoder.InvalidBytecodeException;
+import com.ibm.wala.shrike.shrikeBT.shrikeCT.ClassInstrumenter;
+import com.ibm.wala.shrike.shrikeBT.shrikeCT.OfflineInstrumenter;
+import com.ibm.wala.shrike.shrikeCT.ClassConstants;
+import com.ibm.wala.shrike.shrikeCT.ClassReader;
+import com.ibm.wala.shrike.shrikeCT.ClassReader.AttrIterator;
+import com.ibm.wala.shrike.shrikeCT.ClassWriter;
+import com.ibm.wala.shrike.shrikeCT.ClassWriter.Element;
+import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
+import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser.ReferenceToken;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.config.FileOfClasses;
-import com.ibm.wala.shrikeCT.InvalidClassFileException;
+import com.ibm.wala.shrike.shrikeCT.InvalidClassFileException;
 
 public class MiniJar {
   private static final String USAGE =
@@ -228,7 +228,7 @@ public class MiniJar {
 	System.out.println("entrypoints:" + entrypointsSet.size());
 	options.setEntrypoints(entrypoints);
 	// you can dial down reflection handling if you like
-	options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NONE);
+	options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
 	AnalysisCache cache = new AnalysisCacheImpl();
 	
   CallGraphBuilder builder = Util. makeRTABuilder(options, cache, cha, scope);

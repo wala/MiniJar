@@ -12,8 +12,10 @@ plugins {
 }
 
 repositories {
+    mavenLocal()
     // Use JCenter for resolving dependencies.
     jcenter()
+   
 }
 
 dependencies {
@@ -23,14 +25,13 @@ dependencies {
     // This dependency is exported to consumers, that is to say found on their compile classpath.
     api 'org.apache.commons:commons-math3:3.6.1'
     
-    def walaVersion = '1.5.6'
+    def walaVersion = '1.5.7-SNAPSHOT'
 
         
     implementation "com.ibm.wala:com.ibm.wala.shrike:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.util:${walaVersion}"
-    //implementation "com.ibm.wala:com.ibm.wala.core:${walaVersion}"
-    //implementation "com.ibm.wala:com.ibm.wala.cast:${walaVersion}"
-    implementation files('/Users/mvaziri/.m2/repository/com/ibm/wala/com.ibm.wala.core.java11/0.0.1-SNAPSHOT/com.ibm.wala.core.java11-0.0.1-SNAPSHOT.jar')
+   
+    implementation "com.ibm.wala:com.ibm.wala.core.java11:0.0.1-SNAPSHOT"
+    
     
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
