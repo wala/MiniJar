@@ -6,9 +6,7 @@
  */
 package minijar;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
@@ -29,6 +27,7 @@ import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
 import com.ibm.wala.ipa.callgraph.impl.Util;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -38,7 +37,6 @@ import com.ibm.wala.shrike.shrikeCT.ClassReader;
 import com.ibm.wala.shrike.shrikeCT.ClassWriter;
 import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.util.collections.HashMapFactory;
-import com.ibm.wala.util.config.FileOfClasses;
 
 public class MiniJar {
   private static final String USAGE =
@@ -65,7 +63,7 @@ public class MiniJar {
     }
 
     String jarFile = "";
-    String mainClass = "";
+    Set<String> mainClasses = new HashSet<String>();
     String scopeFileData = "";
     for (int i = 0; i < args.length - 1; i++) {
       if (args[i] == null) {
@@ -75,7 +73,7 @@ public class MiniJar {
           jarFile = args[i];  // Assuming a single jar is passed in
       }
       if (args[i].startsWith("-m")) {
-    	  mainClass = args[i+1];
+    	  mainClasses.add(args[i+1]);
       }
       if (args[i].startsWith("-d")) {
     	  scopeFileData = args[i+1];
@@ -86,7 +84,6 @@ public class MiniJar {
     	throw new IllegalArgumentException("No Jar file specified");
     }
     
-    
     final ArrayList<ZipEntry> entries = new ArrayList<>();
 
     instrumenter = new OfflineInstrumenter();
@@ -95,7 +92,9 @@ public class MiniJar {
     instrumenter.beginTraversal();
     ClassInstrumenter ci;
     MiniJar cw = new MiniJar();
-    Set<String> cg = cw.getReachableMethods(jarFile, mainClass, scopeFileData);
+
+    String[] mClasses = new String[mainClasses.size()];
+    Set<String> cg = cw.getReachableMethods(jarFile, mainClasses.toArray(mClasses), scopeFileData);
    
     while ((ci = instrumenter.nextClass()) != null) {
       try {
@@ -104,7 +103,6 @@ public class MiniJar {
         System.err.println(ex.getMessage() + " in " + instrumenter.getLastClassResourceName());
       }
     }
-
     instrumenter.writeUnmodifiedClasses();
     instrumenter.close();
   }
@@ -178,7 +176,7 @@ public class MiniJar {
     	  ci.deleteMethod(i);
       }
     }
-
+    
     ci.emitClass(cw);
     instrumenter.outputModifiedClass(ci, cw);
   }
@@ -194,22 +192,16 @@ public class MiniJar {
 	  return reachable;
   }
   
-  private Set<String> getReachableMethods(String scopeFile, String mainClass, String scopeFileData) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
+  private Set<String> getReachableMethods(String scopeFile, String[] mainClasses, String scopeFileData) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
 	
-	//AnalysisScope scope = AnalysisScopeReader.readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
-	//AnalysisScope scope = new Java9AnalysisScopeReader().makeJavaBinaryAnalysisScope(scopeFile, null);
-	AnalysisScope scope =
-				new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
+	AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
 	
-	
-	// set exclusions.  we use these exclusions as standard for handling JDK 8
-	//addDefaultExclusions(scope);
 	IClassHierarchy cha = ClassHierarchyFactory.make(scope);
 	System.out.println(cha.getNumberOfClasses() + " classes");
 	System.out.println(Warnings.asString());
 	Warnings.clear();
 	AnalysisOptions options = new AnalysisOptions();
-	Iterable<Entrypoint> entrypoints =  Util.makeMainEntrypoints(scope, cha, mainClass);
+	Iterable<Entrypoint> entrypoints =  Util.makeMainEntrypoints(scope, cha, mainClasses);
 	Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
 	entrypoints.forEach(e -> entrypointsSet.add(e));
 	System.out.println("entrypoints:" + entrypointsSet.size());
@@ -218,7 +210,7 @@ public class MiniJar {
 	options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
 	AnalysisCache cache = new AnalysisCacheImpl();
 	
-  CallGraphBuilder builder = Util. makeRTABuilder(options, cache, cha, scope);
+  CallGraphBuilder<InstanceKey> builder = Util.makeRTABuilder(options, cache, cha, scope);
   //CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
   //CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
   //CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
@@ -286,25 +278,5 @@ public class MiniJar {
   private static String getMethodDescriptor(IMethod m) {
 	  return getMethodString(m.getDeclaringClass().getName().toString(), m.getName().toString(), m.getDescriptor().toString());
   }
-  
-
-  private static final String EXCLUSIONS = "java\\/awt\\/.*\n" + 
-	  		"javax\\/swing\\/.*\n" + 
-	  		"sun\\/awt\\/.*\n" + 
-	  		"sun\\/swing\\/.*\n" + 
-	  		"com\\/sun\\/.*\n" + 
-	  		"sun\\/.*\n" + 
-	  		"org\\/netbeans\\/.*\n" + 
-	  		"org\\/openide\\/.*\n" + 
-	  		"com\\/ibm\\/crypto\\/.*\n" + 
-	  		"com\\/ibm\\/security\\/.*\n" + 
-	  		"org\\/apache\\/xerces\\/.*\n" + 
-	  		"java\\/security\\/.*\n" + 
-	  		"jdk\\/.*\n" +
-	  		"";
-
-	  public static void addDefaultExclusions(AnalysisScope scope) throws UnsupportedEncodingException, IOException {
-		    scope.setExclusions(new FileOfClasses(new ByteArrayInputStream(EXCLUSIONS.getBytes("UTF-8"))));
-	  }
 
 }
