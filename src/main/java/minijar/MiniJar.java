@@ -8,6 +8,7 @@ package minijar;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -17,6 +18,7 @@ import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
 import com.ibm.wala.core.util.warnings.Warnings;
+import com.ibm.wala.core.util.strings.StringStuff;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisCacheImpl;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -26,6 +28,7 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
+import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.callgraph.impl.Util;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
@@ -37,6 +40,10 @@ import com.ibm.wala.shrike.shrikeCT.ClassReader;
 import com.ibm.wala.shrike.shrikeCT.ClassWriter;
 import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.collections.HashSetFactory;
+import com.ibm.wala.types.ClassLoaderReference;
+import com.ibm.wala.types.TypeReference;
+import com.ibm.wala.types.TypeName;
 
 public class MiniJar {
   private static final String USAGE =
@@ -65,6 +72,7 @@ public class MiniJar {
     String jarFile = "";
     Set<String> mainClasses = new HashSet<String>();
     String scopeFileData = "";
+    String entryClass = "";
     for (int i = 0; i < args.length - 1; i++) {
       if (args[i] == null) {
         throw new IllegalArgumentException("args[" + i + "] is null");
@@ -77,6 +85,9 @@ public class MiniJar {
       }
       if (args[i].startsWith("-d")) {
     	  scopeFileData = args[i+1];
+      }
+      if (args[i].startsWith("-e")) {
+    	  entryClass = args[i+1];
       }
     }
     
@@ -94,7 +105,7 @@ public class MiniJar {
     MiniJar cw = new MiniJar();
 
     String[] mClasses = new String[mainClasses.size()];
-    Set<String> cg = cw.getReachableMethods(jarFile, mainClasses.toArray(mClasses), scopeFileData);
+    Set<String> cg = cw.getReachableMethods(mainClasses.toArray(mClasses), scopeFileData, entryClass);
    
     while ((ci = instrumenter.nextClass()) != null) {
       try {
@@ -192,8 +203,8 @@ public class MiniJar {
 	  return reachable;
   }
   
-  private Set<String> getReachableMethods(String scopeFile, String[] mainClasses, String scopeFileData) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-	
+  private Set<String> getReachableMethods(String[] mainClasses, String scopeFileData, String entryClass) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
+	//AnalysisScope scope = new Java9AnalysisScopeReader().makeJavaBinaryAnalysisScope(scopeFile, null);
 	AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
 	
 	IClassHierarchy cha = ClassHierarchyFactory.make(scope);
@@ -201,11 +212,19 @@ public class MiniJar {
 	System.out.println(Warnings.asString());
 	Warnings.clear();
 	AnalysisOptions options = new AnalysisOptions();
-	Iterable<Entrypoint> entrypoints =  Util.makeMainEntrypoints(scope, cha, mainClasses);
+	Iterable<Entrypoint> entrypoints = Util.makeMainEntrypoints(scope, cha, mainClasses);
 	Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
 	entrypoints.forEach(e -> entrypointsSet.add(e));
 	System.out.println("entrypoints:" + entrypointsSet.size());
 	options.setEntrypoints(entrypoints);
+
+  if (entryClass != "") {
+    Iterable<Entrypoint> entrypointsP = makePublicEntrypoints(cha, entryClass);
+    entrypointsP.forEach(e -> entrypointsSet.add(e));
+    System.out.println("entrypointsP:" + entrypointsSet.size());
+    options.setEntrypoints(entrypointsP); //Temporary overriding of main entrypoint(s) - might need to concat both iterables for main and non-main
+  }
+
 	// you can dial down reflection handling if you like
 	options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
 	AnalysisCache cache = new AnalysisCacheImpl();
@@ -278,5 +297,37 @@ public class MiniJar {
   private static String getMethodDescriptor(IMethod m) {
 	  return getMethodString(m.getDeclaringClass().getName().toString(), m.getName().toString(), m.getDescriptor().toString());
   }
+
+  private static Iterable<Entrypoint> makePublicEntrypoints(
+      IClassHierarchy cha, String entryClass) {
+    Collection<Entrypoint> result = new ArrayList<>();
+    IClass klass =
+        cha.lookupClass(
+            TypeReference.findOrCreate(
+                ClassLoaderReference.Application,
+                StringStuff.deployment2CanonicalTypeString(entryClass)));
+    for (IMethod m : klass.getDeclaredMethods()) {
+      if (m.isPublic()) {
+        result.add(new DefaultEntrypoint(m, cha));
+      }
+    }
+    return result;
+  }
+
+  private static Iterable<Entrypoint> makePrimordialPublicEntrypoints(IClassHierarchy cha, String entryClass) {
+    final HashSet<Entrypoint> result = HashSetFactory.make();
+    for (IClass clazz : cha) {
+
+      if (clazz.getName().toString().contains(entryClass) && !clazz.isInterface() && !clazz.isAbstract()) {
+        for (IMethod method : clazz.getDeclaredMethods()) {
+          if (method.isPublic() && !method.isAbstract()) {
+            System.out.println("Entry:" + method.getReference());
+            result.add(new DefaultEntrypoint(method, cha));
+          }
+        }
+      }
+    }
+    return result::iterator;
+  }   
 
 }
