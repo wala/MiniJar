@@ -71,7 +71,7 @@ public class MiniJar {
       if (args[i] == null) {
         throw new IllegalArgumentException("args[" + i + "] is null");
       }
-      if (!args[i].startsWith("-")) {
+      if (!args[i].startsWith("-") && args[i].endsWith("jar")) {
           jarFile = args[i];  // Assuming a single jar is passed in
       }
       if (args[i].startsWith("-m")) {

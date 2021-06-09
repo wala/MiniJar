@@ -10,24 +10,21 @@
             "name": "Launch MiniJar - Example",
             "request": "launch",
             "mainClass": "minijar.MiniJar",
-            "projectName": "lib",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/lib/src/main/resources/Example-0.1.0.jar  -m Lshape/Example -d wala.data.example.txt -o out.jar"
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/Example-0.1.0.jar  -m Lshape/Example -d wala.data.example.txt -o out.jar"
         },
         {
             "type": "java",
             "name": "Launch MiniJar - Getting Started",
             "request": "launch",
             "mainClass": "minijar.MiniJar",
-            "projectName": "lib",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/lib/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -o out.jar > output.txt"
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -o out.jar > output.txt"
         },
         {
             "type": "java",
             "name": "Launch MiniJar - Responder Simulator",
             "request": "launch",
             "mainClass": "minijar.MiniJar",
-            "projectName": "lib",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/lib/src/main/resources/responder-simulator.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/responder-simulator.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
         }
     ]
 }
