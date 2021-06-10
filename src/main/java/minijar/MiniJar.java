@@ -269,6 +269,13 @@ public class MiniJar {
       }
     }
 
+    for(IClass klass: m.getDeclaringClass().getAllImplementedInterfaces()){
+      String superMethod = getSuperMethod(klass, getMethodName(m));
+      if (superMethod != null) {
+        ret.add(superMethod);
+      }
+    }
+
     return ret;
   }
 

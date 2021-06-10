@@ -4,19 +4,28 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
             "type": "java",
             "name": "Launch MiniJar - Example",
             "request": "launch",
             "mainClass": "minijar.MiniJar",
+            "projectName": "minijar",
             "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/Example-0.1.0.jar  -m Lshape/Example -d wala.data.example.txt -o out.jar"
+        },
+        {
+            "type": "java",
+            "name": "Launch MiniJar - Example - interface",
+            "request": "launch",
+            "mainClass": "minijar.MiniJar",
+            "projectName": "minijar",
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/Example-0.1.1.jar  -m Lshape/Example -d wala.data.example1.txt -o out.jar"
         },
         {
             "type": "java",
             "name": "Launch MiniJar - Getting Started",
             "request": "launch",
             "mainClass": "minijar.MiniJar",
+            "projectName": "minijar",
             "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -o out.jar > output.txt"
         },
         {
@@ -24,7 +33,8 @@
             "name": "Launch MiniJar - Responder Simulator",
             "request": "launch",
             "mainClass": "minijar.MiniJar",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/responder-simulator.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
+            "projectName": "minijar",
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/responder-simulator-quarkus.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
         }
     ]
 }
