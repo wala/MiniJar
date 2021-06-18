@@ -6,7 +6,9 @@
  */
 package minijar;
 
+import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -14,6 +16,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 
+import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
@@ -42,8 +46,11 @@ import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.types.ClassLoaderReference;
+import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.types.TypeReference;
-import com.ibm.wala.types.TypeName;
+import com.ibm.wala.types.Selector;
+import com.ibm.wala.core.util.strings.Atom;
+import com.ibm.wala.types.Descriptor;
 
 public class MiniJar {
   private static final String USAGE =
@@ -73,6 +80,9 @@ public class MiniJar {
     Set<String> mainClasses = new HashSet<String>();
     String scopeFileData = "";
     String entryClass = "";
+    String inclusionsFile = "";
+    String entrypointsFile = "";
+
     for (int i = 0; i < args.length - 1; i++) {
       if (args[i] == null) {
         throw new IllegalArgumentException("args[" + i + "] is null");
@@ -89,12 +99,28 @@ public class MiniJar {
       if (args[i].startsWith("-e")) {
     	  entryClass = args[i+1];
       }
+      if (args[i].startsWith("-i")) {
+        inclusionsFile = args[i+1];
+      }
+      if (args[i].startsWith("-p")) {
+        entrypointsFile = args[i+1];
+      }
     }
     
     if (jarFile == "") {
     	throw new IllegalArgumentException("No Jar file specified");
     }
     
+    Set<String> entrypointMethods = null;
+    if (!entrypointsFile.equals("")) {
+      entrypointMethods = Sets.newHashSet(Files.readLines(new File(entrypointsFile), StandardCharsets.UTF_8));
+    }
+
+    Set<String> includedPaths = null;
+    if (!inclusionsFile.equals("")) {
+      includedPaths = Sets.newHashSet(Files.readLines(new File(inclusionsFile), StandardCharsets.UTF_8));
+    }
+
     final ArrayList<ZipEntry> entries = new ArrayList<>();
 
     instrumenter = new OfflineInstrumenter();
@@ -105,11 +131,11 @@ public class MiniJar {
     MiniJar cw = new MiniJar();
 
     String[] mClasses = new String[mainClasses.size()];
-    Set<String> cg = cw.getReachableMethods(mainClasses.toArray(mClasses), scopeFileData, entryClass);
+    Set<String> cg = cw.getReachableMethods(mainClasses.toArray(mClasses), scopeFileData, entryClass, entrypointMethods, includedPaths);
    
     while ((ci = instrumenter.nextClass()) != null) {
       try {
-        cw.processClass(ci, cg);
+        cw.processClass(ci, cg, includedPaths);
       } catch (UnknownAttributeException ex) {
         System.err.println(ex.getMessage() + " in " + instrumenter.getLastClassResourceName());
       }
@@ -118,7 +144,7 @@ public class MiniJar {
     instrumenter.close();
   }
 
-  private void processClass(final ClassInstrumenter ci, Set<String> cg) throws Exception {
+  private void processClass(final ClassInstrumenter ci, Set<String> cg, Set<String> includedPaths) throws Exception {
     ClassReader cr = ci.getReader();
     
     ClassWriter cw =
@@ -183,7 +209,7 @@ public class MiniJar {
       String methodName = cr.getMethodName(i);
       String methodType = cr.getMethodType(i);
 
-      if (!isReachable(cg, className, methodName, methodType)) {
+      if (!isReachable(cg, className, methodName, methodType, includedPaths)) {
     	  ci.deleteMethod(i);
       }
     }
@@ -192,8 +218,12 @@ public class MiniJar {
     instrumenter.outputModifiedClass(ci, cw);
   }
 
-  private boolean isReachable(Set<String> cg, String className, String methodName, String methodType) {
+  private boolean isReachable(Set<String> cg, String className, String methodName, String methodType, Set<String> includedPaths) {
 	  String desc = getMethodString(className, methodName, methodType);
+    if (mustInclude(className, includedPaths)) {
+      System.out.println("Reachable: " + desc);
+      return true;
+    }
 	  boolean reachable = cg.contains(desc);
 	  if (reachable) {
 		  System.out.println("Reachable: " + desc);
@@ -202,48 +232,84 @@ public class MiniJar {
 	  }
 	  return reachable;
   }
-  
-  private Set<String> getReachableMethods(String[] mainClasses, String scopeFileData, String entryClass) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-	//AnalysisScope scope = new Java9AnalysisScopeReader().makeJavaBinaryAnalysisScope(scopeFile, null);
-	AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
-	
-	IClassHierarchy cha = ClassHierarchyFactory.make(scope);
-	System.out.println(cha.getNumberOfClasses() + " classes");
-	System.out.println(Warnings.asString());
-	Warnings.clear();
-	AnalysisOptions options = new AnalysisOptions();
-	Iterable<Entrypoint> entrypoints = Util.makeMainEntrypoints(scope, cha, mainClasses);
-	Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
-	entrypoints.forEach(e -> entrypointsSet.add(e));
-	System.out.println("entrypoints:" + entrypointsSet.size());
-	options.setEntrypoints(entrypoints);
 
-  if (entryClass != "") {
-    Iterable<Entrypoint> entrypointsP = makePublicEntrypoints(cha, entryClass);
-    entrypointsP.forEach(e -> entrypointsSet.add(e));
-    System.out.println("entrypointsP:" + entrypointsSet.size());
-    options.setEntrypoints(entrypointsP); //Temporary overriding of main entrypoint(s) - might need to concat both iterables for main and non-main
+  private boolean mustInclude(String className, Set<String> includedPaths) {
+    if (className.startsWith("L")) {
+      className = className.substring(1);
+    }
+    for (String path: includedPaths) {
+      if (className.startsWith(path)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  private Set<Entrypoint> getEntrypoints(Set<String> methods, IClassHierarchy cha) {
+    Set<Entrypoint> ret = new HashSet<Entrypoint>();
+    for (String method: methods) {
+      if (method.equals("")) {
+        continue;
+      }
+      String methodName = getMethodName(method);
+      //String methodDesc = getMethodDesc(method);
+      String className = getMethodClassName(method);
+      TypeReference typeRef = TypeReference.findOrCreate(ClassLoaderReference.Application, className);
+      Selector selector = Selector.make(methodName);
+      
+      MethodReference metRef = MethodReference.findOrCreate(typeRef, selector);
+
+      //MethodReference metRef = MethodReference.findOrCreate(typeRef, Atom.findOrCreateAsciiAtom(methodName), Descriptor.findOrCreateUTF8(methodDesc));
+
+      ret.add(new DefaultEntrypoint(metRef, cha));
+    }
+    return ret;
   }
 
-	// you can dial down reflection handling if you like
-	options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
-	AnalysisCache cache = new AnalysisCacheImpl();
+  private Set<String> getReachableMethods(String[] mainClasses, String scopeFileData, String entryClass, Set<String> entrypointMethods, Set<String> includedPaths) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
+	  //AnalysisScope scope = new Java9AnalysisScopeReader().makeJavaBinaryAnalysisScope(scopeFile, null);
+	  AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
 	
-  CallGraphBuilder<InstanceKey> builder = Util.makeRTABuilder(options, cache, cha, scope);
-  //CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
-  //CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
-  //CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
-  //CallGraphBuilder builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
+	  IClassHierarchy cha = ClassHierarchyFactory.make(scope);
+	  System.out.println(cha.getNumberOfClasses() + " classes");
+	  System.out.println(Warnings.asString());
+	  Warnings.clear();
+	  AnalysisOptions options = new AnalysisOptions();
+	  Iterable<Entrypoint> entrypoints = Util.makeMainEntrypoints(scope, cha, mainClasses);
+	  Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
+	  entrypoints.forEach(e -> entrypointsSet.add(e));
+    if (entrypointMethods != null) {
+      entrypointsSet.addAll(getEntrypoints(entrypointMethods, cha));
+    }
+	  options.setEntrypoints(entrypointsSet);
+    System.out.println("entrypoints:" + entrypointsSet.size());
+
+    if (entryClass != "") {
+      Iterable<Entrypoint> entrypointsP = makePublicEntrypoints(cha, entryClass);
+      entrypointsP.forEach(e -> entrypointsSet.add(e));
+      System.out.println("entrypointsP:" + entrypointsSet.size());
+      options.setEntrypoints(entrypointsP); //Temporary overriding of main entrypoint(s) - might need to concat both iterables for main and non-main
+    }
+
+	  // you can dial down reflection handling if you like
+	  options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
+	  AnalysisCache cache = new AnalysisCacheImpl();
 	
-	System.out.println("building call graph...");
-	CallGraph cg = builder.makeCallGraph(options, null);
-	System.out.println("done! " + cg.getNumberOfNodes());
+    CallGraphBuilder<InstanceKey> builder = Util.makeRTABuilder(options, cache, cha, scope);
+    //CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
+    //CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
+    //CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
+    //CallGraphBuilder builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
 	
-	Set<String> allMethods = new HashSet<String>();
-	cg.forEach(n -> processMethod(allMethods, n, cha));
-  System.out.println("number of methods: " + allMethods.size());
+	  System.out.println("building call graph...");
+	  CallGraph cg = builder.makeCallGraph(options, null);
+	  System.out.println("done! " + cg.getNumberOfNodes());
 	
-	return allMethods;
+	  Set<String> allMethods = new HashSet<String>();
+	  cg.forEach(n -> processMethod(allMethods, n, cha));
+    System.out.println("number of methods: " + allMethods.size());
+	
+	  return allMethods;
   }
 
   private static void processMethod(Set<String> allMethods, CGNode n, IClassHierarchy cha) {
@@ -295,6 +361,19 @@ public class MiniJar {
 		  return ret;
 	  }
 	  return "L" + ret;
+  }
+
+  private static String getMethodClassName (String name) {
+    return name.substring(0, name.indexOf("#"));
+  }
+
+  private static String getMethodName (String name) {
+    return name.substring(name.indexOf("#") + 1);
+    //return name.substring(name.indexOf("#") + 1, name.indexOf("("));
+  }
+
+  private static String getMethodDesc (String name) {
+    return name.substring(name.indexOf("("));
   }
 
   private static String getMethodName(IMethod m) {

@@ -26,7 +26,7 @@
             "request": "launch",
             "mainClass": "minijar.MiniJar",
             "projectName": "minijar",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -o out.jar > output.txt"
+            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -i /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -i /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -i /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -p /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/entrypoints-getting-started.txt -o out.jar > output.txt"
         },
         {
             "type": "java",
@@ -35,6 +35,13 @@
             "mainClass": "minijar.MiniJar",
             "projectName": "minijar",
             "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/responder-simulator-quarkus.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
+        },
+        {
+            "type": "java",
+             "name": "Debug out jar",
+             "request": "attach",
+             "hostName": "localhost",
+             "port": 1044
         }
     ]
 }
