@@ -1,4 +1,4 @@
 Primordial,Java,jrt,java.base
 Primordial,Java,jrt,java.logging
 Primordial,Java,jarFile,primordial.jar.model
-Application,Java,jarFile,responder-simulator.jar
+Application,Java,jarFile,responder-simulator-quarkus.jar
