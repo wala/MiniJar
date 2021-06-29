@@ -1,4 +1,1 @@
-org/jboss
-org/jboss/logmanager
-org/acme/getting/started
-io/quarkus
+javax/annotation/Priority
