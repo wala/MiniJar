@@ -1,6 +1,6 @@
-# minijar
+# MiniJar
 
-MiniJar is a tool for jar reduction. It takes an executable jar and a set of entrypoints, and outputs a jar where unreachable methods have been removed. Minijar uses static analysis (WALA, https://github.com/WALA/wala) to build a call graph in order to determine which methods are reachable. It takes into account class hierarchies, abstract methods/classes, and interfaces. 
+MiniJar is a tool for jar reduction. It takes an executable jar and a set of entrypoints, and outputs a jar where unreachable methods have been removed. Minijar uses static analysis [WALA](https://github.com/WALA/wala) to build a call graph in order to determine which methods are reachable. It takes into account class hierarchies, abstract methods/classes, and interfaces. 
 
 ## Installation & Usage
 
