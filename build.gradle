@@ -6,9 +6,26 @@
  * User Manual available at https://docs.gradle.org/6.8/userguide/building_java_projects.html
  */
 
-plugins {
-    // Apply the java-library plugin for API and implementation separation.
-    id 'java-library'
+
+apply plugin: 'java'
+apply plugin: 'application'
+
+ext.javaMainClass = "minijar.MiniJar"
+if (project.hasProperty("args")) {
+    ext.cmdargs = project.getProperty("args")
+} else { 
+    ext.cmdargs = ""
+}
+task cmdLineJavaExec(type: JavaExec) {
+    group = "Execution"
+    description = "Run the main class with JavaExecTask"
+    classpath = sourceSets.main.runtimeClasspath
+    main = javaMainClass
+    args cmdargs.split()
+}
+
+application {
+    mainClassName = javaMainClass
 }
 
 repositories {
@@ -23,7 +40,7 @@ dependencies {
     testImplementation 'junit:junit:4.13'
 
     // This dependency is exported to consumers, that is to say found on their compile classpath.
-    api 'org.apache.commons:commons-math3:3.6.1'
+   // api 'org.apache.commons:commons-math3:3.6.1'
     
     def walaVersion = '1.5.7-SNAPSHOT'
 
@@ -36,4 +53,9 @@ dependencies {
 
     // This dependency is used internally, and not exposed to consumers on their own compile classpath.
     implementation 'com.google.guava:guava:29.0-jre'
+}
+
+jar {
+    archiveBaseName = 'minijar'
+    archiveVersion =  '0.1.0'
 }
