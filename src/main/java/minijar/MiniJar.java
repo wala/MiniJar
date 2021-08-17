@@ -10,21 +10,16 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
-import com.ibm.wala.classLoader.Language;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
 import com.ibm.wala.core.util.warnings.Warnings;
-import com.ibm.wala.core.util.strings.StringStuff;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisCacheImpl;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
@@ -34,7 +29,6 @@ import com.ibm.wala.ipa.callgraph.CallGraph;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
-import com.ibm.wala.ipa.callgraph.impl.DefaultEntrypoint;
 import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ipa.callgraph.impl.Util;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -46,22 +40,18 @@ import com.ibm.wala.shrike.shrikeBT.shrikeCT.OfflineInstrumenter;
 import com.ibm.wala.shrike.shrikeCT.ClassReader;
 import com.ibm.wala.shrike.shrikeCT.ClassWriter;
 import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
-import com.ibm.wala.ssa.IR;
-import com.ibm.wala.util.collections.HashMapFactory;
-import com.ibm.wala.util.collections.HashSetFactory;
-import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
-import com.ibm.wala.types.TypeReference;
-import com.ibm.wala.types.Selector;
-import com.ibm.wala.core.util.strings.Atom;
-import com.ibm.wala.types.Descriptor;
-import com.ibm.wala.classLoader.CallSiteReference;
+import com.ibm.wala.util.collections.HashMapFactory;
 
 public class MiniJar {
   private static final String USAGE =
       "MiniJar usage:\n"
           + "This tool takes the following command line options:\n"
           + "    <jarname> <jarname> ...   Process the classes from these jars\n"
+          + "    -m <mainClass>            Provide one or more mainClassed\n"
+          + "    -e <entryClass>           Provide one or more entryClassed\n"
+          + "    -d <scopeDataFile>        Provide a scope data file\n"  
+          + "    -p <entryPointFile>       Provide an entrypoint file\n"
           + "    -o <jarname>              Put the resulting classes into <jarname>\n";
 
   private static OfflineInstrumenter instrumenter;
@@ -214,7 +204,7 @@ public class MiniJar {
       String methodName = cr.getMethodName(i);
       String methodType = cr.getMethodType(i);
 
-      if (!isReachable(cg, className, methodName, methodType, includedPaths)) {
+      if (!new MethodDescriptor(className, methodName, methodType).isReachable(cg, includedPaths)) {
     	  ci.deleteMethod(i);
       }
     }
@@ -223,50 +213,7 @@ public class MiniJar {
     instrumenter.outputModifiedClass(ci, cw);
   }
 
-  private boolean isReachable(Set<String> cg, String className, String methodName, String methodType, Set<String> includedPaths) {
-	  String desc = getMethodString(className, methodName, methodType);
-
-    // If this method is a static initializer for a class, just include it for now
-    if (desc.contains("$static$")) {
-      System.out.println("Reachable because static initializer: " + desc);
-      return true;
-    }
-
-    if (mustInclude(className, includedPaths)) {
-      System.out.println("Reachable by inclusion: " + desc);
-      return true;
-    }
-	  boolean reachable = cg.contains(desc);
-	  if (reachable) {
-		  System.out.println("Reachable by cg: " + desc);
-	  } else {
-		  System.out.println("Not reachable: " + desc);
-	  }
-	  return reachable;
-  }
-
-  private boolean mustInclude(String className, Set<String> includedPaths) {
-    if (className.startsWith("L")) {
-      className = className.substring(1);
-    }
-    for (String path: includedPaths) {
-      if (path.equals("")) {
-        continue;
-      }
-      if (className.startsWith(path)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  private static MethodReference getMethodReference(String desc) {
-    String methodName = getMethodName(desc);
-    String className = getMethodClassName(desc);
-    TypeReference typeRef = TypeReference.findOrCreate(ClassLoaderReference.Application, className);
-    Selector selector = Selector.make(methodName);
-    return MethodReference.findOrCreate(typeRef, selector);
-  }
+  
   
   private Set<Entrypoint> getEntrypoints(Set<String> methods, IClassHierarchy cha) {
     Set<Entrypoint> ret = new HashSet<Entrypoint>();
@@ -274,9 +221,7 @@ public class MiniJar {
       if (method.equals("")) {
         continue;
       }
-      MethodReference metRef = getMethodReference(method);
-      Entrypoint entrypoint = new DefaultEntrypoint(metRef, cha);
-      ret.add(entrypoint);
+      ret.add(new MethodDescriptor(method).getEntrypoint(cha));
     }
     return ret;
   }
@@ -300,7 +245,7 @@ public class MiniJar {
 	  System.out.println("entrypoints:" + entrypointsSet.size());
 
 	  if (entryClass != "") {
-		  Iterable<Entrypoint> entrypointsP = makePublicEntrypoints(cha, entryClass);
+		  Iterable<Entrypoint> entrypointsP = EntrypointUtil.makePublicEntrypoints(cha, entryClass);
 		  entrypointsP.forEach(e -> entrypointsSet.add(e));
 		  System.out.println("entrypointsP:" + entrypointsSet.size());
 		  options.setEntrypoints(entrypointsP); //Temporary overriding of main entrypoint(s) - might need to concat both iterables for main and non-main
@@ -325,28 +270,17 @@ public class MiniJar {
 	  System.out.println("number of methods: " + allMethods.size());
 
 	  System.out.println("*** Call graph ***");
-	  cg.forEach(n -> System.out.println(getMethodDescriptor(n.getMethod())));
+	  cg.forEach(n -> System.out.println(new MethodDescriptor(n.getMethod()).toString()));
 	  System.out.println("*** End - Call graph ***");
 
-
-	
-    // Set<CGNode> nodes = cg.getNodes(getMethodReference("Ljava/lang/Class#newInstance()Ljava/lang/Object;"));
-    // System.out.println("CALL SITES for newInstance *********************************");
-    // for (CGNode n: nodes){
-    //   for (Iterator<CGNode> i = cg.getPredNodes(n); i.hasNext(); ){
-    //     CGNode pred = i.next();
-    //     System.out.println(getMethodDescriptor(pred.getMethod()));
-    //   }
-    // }
-    // System.out.println("*********************************");
 	  return allMethods;
   }
 
   private static void processMethod(Set<String> allMethods, CGNode n, IClassHierarchy cha, CallGraph cg) {
     IMethod m = n.getMethod();
-    String desc = getMethodDescriptor(m);
+    String desc = new MethodDescriptor(m).toString();
     allMethods.add(desc);
-    allMethods.addAll(getSuperMethods(m,cha));
+    allMethods.addAll(MethodUtil.getSuperMethods(m,cha));
 
     // Process for call sites
     n.iterateCallSites().forEachRemaining(call -> {
@@ -374,102 +308,7 @@ public class MiniJar {
     
   }
 
-  private static Set<String> getSuperMethods(IMethod m, IClassHierarchy cha) {
-    Set<String> ret = new HashSet<String>();
-    Set<IClass> superClasses = new HashSet<IClass>();
-    IClass superClass = m.getDeclaringClass().getSuperclass();
-    
-    while(superClass != null) {
-      superClasses.add(superClass);
-      superClass = superClass.getSuperclass();
-    }
 
-    for(IClass klass: superClasses) {
-      String superMethod = getSuperMethod(klass, getMethodName(m));
-      if (superMethod != null) {
-        ret.add(superMethod);
-      }
-    }
 
-    for(IClass klass: m.getDeclaringClass().getAllImplementedInterfaces()){
-      String superMethod = getSuperMethod(klass, getMethodName(m));
-      if (superMethod != null) {
-        ret.add(superMethod);
-      }
-    }
-
-    return ret;
-  }
-
-  private static String getSuperMethod(IClass klass, String methodName) {
-    for (IMethod m: klass.getAllMethods()) {
-      String superMethodName = getMethodName(m);
-      if (superMethodName.equals(methodName)) {
-        return getMethodDescriptor(m);
-      }
-    }
-    return null;
-  }
-
-  private static String getMethodString (String className, String methodName, String methodType) {
-	  String ret = className + "#" + methodName + methodType;
-	  if (className.startsWith("L")) {
-		  return ret;
-	  }
-	  return "L" + ret;
-  }
-
-  private static String getMethodClassName (String name) {
-    return name.substring(0, name.indexOf("#"));
-  }
-
-  private static String getMethodName (String name) {
-    return name.substring(name.indexOf("#") + 1);
-    //return name.substring(name.indexOf("#") + 1, name.indexOf("("));
-  }
-
-  private static String getMethodDesc (String name) {
-    return name.substring(name.indexOf("("));
-  }
-
-  private static String getMethodName(IMethod m) {
-    return m.getName().toString() +  m.getDescriptor().toString();
-  }
-
-  private static String getMethodDescriptor(IMethod m) {
-	  return getMethodString(m.getDeclaringClass().getName().toString(), m.getName().toString(), m.getDescriptor().toString());
-  }
-
-  private static Iterable<Entrypoint> makePublicEntrypoints(
-      IClassHierarchy cha, String entryClass) {
-    Collection<Entrypoint> result = new ArrayList<>();
-    IClass klass =
-        cha.lookupClass(
-            TypeReference.findOrCreate(
-                ClassLoaderReference.Application,
-                StringStuff.deployment2CanonicalTypeString(entryClass)));
-    for (IMethod m : klass.getDeclaredMethods()) {
-      if (m.isPublic()) {
-        result.add(new DefaultEntrypoint(m, cha));
-      }
-    }
-    return result;
-  }
-
-  private static Iterable<Entrypoint> makePrimordialPublicEntrypoints(IClassHierarchy cha, String entryClass) {
-    final HashSet<Entrypoint> result = HashSetFactory.make();
-    for (IClass clazz : cha) {
-
-      if (clazz.getName().toString().contains(entryClass) && !clazz.isInterface() && !clazz.isAbstract()) {
-        for (IMethod method : clazz.getDeclaredMethods()) {
-          if (method.isPublic() && !method.isAbstract()) {
-            System.out.println("Entry:" + method.getReference());
-            result.add(new DefaultEntrypoint(method, cha));
-          }
-        }
-      }
-    }
-    return result::iterator;
-  }   
-
+  
 }
