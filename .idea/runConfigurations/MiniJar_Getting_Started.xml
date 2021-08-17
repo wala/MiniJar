@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="MiniJar Getting Started" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="/Library/Java/JavaVirtualMachines/adoptopenjdk-11.jdk/Contents/Home" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <option name="MAIN_CLASS_NAME" value="minijar.MiniJar" />
+    <module name="minijar.main" />
+    <option name="PROGRAM_PARAMETERS" value="--scan -Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d src/main/resources/wala.data.getting.started.txt -p src/main/resources/entrypoints-getting-started.txt -o out.jar &gt; output.txt" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="minijar.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

@@ -28,9 +28,10 @@ dependencies {
     def walaVersion = '1.5.7-SNAPSHOT'
 
         
-    implementation "com.ibm.wala:com.ibm.wala.shrike:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.util:${walaVersion}"
-    implementation "com.ibm.wala:com.ibm.wala.core.java11:0.0.1-SNAPSHOT"
+    implementation "WALA:com.ibm.wala.shrike:${walaVersion}"
+    implementation "WALA:com.ibm.wala.util:${walaVersion}"
+    implementation "WALA:com.ibm.wala.core:${walaVersion}"
+    implementation "WALA:com.ibm.wala.core.java11:${walaVersion}"
     
     
 

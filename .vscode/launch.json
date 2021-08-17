@@ -10,7 +10,7 @@
             "request": "launch",
             "mainClass": "minijar.MiniJar",
             "projectName": "minijar",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/Example-0.1.0.jar  -m Lshape/Example -d wala.data.example.txt -o out.jar"
+            "args": "-Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/Example-0.1.0.jar  -m Lshape/Example -d wala.data.example.txt -o out.jar"
         },
         {
             "type": "java",
@@ -18,7 +18,7 @@
             "request": "launch",
             "mainClass": "minijar.MiniJar",
             "projectName": "minijar",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/Example-0.1.1.jar  -m Lshape/Example -d wala.data.example1.txt -o out.jar"
+            "args": "-Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/Example-0.1.1.jar  -m Lshape/Example -d wala.data.example1.txt -o out.jar"
         },
         {
             "type": "java",
@@ -26,7 +26,7 @@
             "request": "launch",
             "mainClass": "minijar.MiniJar",
             "projectName": "minijar",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d wala.data.getting.started.txt  -i /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -i /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -i /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -p /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/entrypoints-getting-started.txt -o out.jar > output.txt"
+            "args": "-Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d ~/quarkus-workspace/minijar/src/main/resources/wala.data.getting.started.txt -p ~/quarkus-workspace/minijar/src/main/resources/entrypoints-getting-started.txt -o out.jar > output.txt"
         },
         {
             "type": "java",
@@ -34,7 +34,15 @@
             "request": "launch",
             "mainClass": "minijar.MiniJar",
             "projectName": "minijar",
-            "args": "-Xmx10000m /Users/mvaziri/quarkus-workspace/minijar/src/main/resources/responder-simulator-quarkus.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar"
+            "args": "-Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/responder-simulator.jar  -m Lio/quarkus/runner/GeneratedMain  -d wala.data.responder.simulator.txt -o out.jar > output.txt"
+        },
+        {
+            "type": "java",
+            "name": "Launch MiniJar - Responder Simulator Quarkus",
+            "request": "launch",
+            "mainClass": "minijar.MiniJar",
+            "projectName": "minijar",
+            "args": "-Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/responder-simulator-quarkus.jar  -m Lio/quarkus/runner/GeneratedMain  -p ~/quarkus-workspace/minijar/src/main/resources/entrypoints-responder-simulator-quarkus.txt -i ~/quarkus-workspace/minijar/src/main/resources/inclusions-getting-started.txt -d wala.data.responder.simulator.quarkus.txt -o outGS.jar > outputGS.txt"
         },
         {
             "type": "java",
