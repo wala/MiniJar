@@ -227,9 +227,10 @@ public class MiniJar {
   private Set<String> getReachableMethods(String[] mainClasses, String scopeFileData, String entryClass, Set<String> entrypointMethods, Set<String> includedPaths) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
 	  //AnalysisScope scope = new Java9AnalysisScopeReader().makeJavaBinaryAnalysisScope(scopeFile, null);
 	  AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
-	
-	  IClassHierarchy cha = ClassHierarchyFactory.make(scope);
+
 	  addDefaultExclusions(scope);
+	  IClassHierarchy cha = ClassHierarchyFactory.make(scope);
+
 	  System.out.println(cha.getNumberOfClasses() + " classes");
 	  System.out.println(Warnings.asString());
 	  Warnings.clear();
@@ -363,19 +364,19 @@ public class MiniJar {
     
   }
 
-	private static final String EXCLUSIONS = "java\\/awt\\/.*\n" +
-		"javax\\/swing\\/.*\n" +
-		"sun\\/awt\\/.*\n" +
-		"sun\\/swing\\/.*\n" +
-		"com\\/sun\\/.*\n" +
-		"sun\\/.*\n" +
-		"org\\/netbeans\\/.*\n" +
-		"org\\/openide\\/.*\n" +
-		"com\\/ibm\\/crypto\\/.*\n" +
-		"com\\/ibm\\/security\\/.*\n" +
-		"org\\/apache\\/xerces\\/.*\n" +
-		"java\\/security\\/.*\n" +
-		"jdk\\/.*\n" +
+	private static final String EXCLUSIONS = "java/awt/.*\n" +
+		"javax/swing/.*\n" +
+		"sun/awt/.*\n" +
+		"sun/swing/.*\n" +
+		"com/sun/.*\n" +
+		"sun/.*\n" +
+		"org/netbeans/.*\n" +
+		"org/openide/.*\n" +
+		"com/ibm/crypto/.*\n" +
+		"com/ibm/security/.*\n" +
+		"org/apache/xerces/.*\n" +
+		"java/security/.*\n" +
+		"jdk/.*\n" +
 		"";
 
 	public static void addDefaultExclusions(AnalysisScope scope) throws UnsupportedEncodingException, IOException {
