@@ -6,8 +6,7 @@
  */
 package minijar;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -17,21 +16,18 @@ import java.util.zip.ZipEntry;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.analysis.reflection.ClassFactoryContextInterpreter;
+import com.ibm.wala.analysis.reflection.ClassFactoryContextSelector;
+import com.ibm.wala.analysis.reflection.JavaTypeContext;
+import com.ibm.wala.classLoader.*;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
 import com.ibm.wala.core.util.warnings.Warnings;
-import com.ibm.wala.ipa.callgraph.AnalysisCache;
-import com.ibm.wala.ipa.callgraph.AnalysisCacheImpl;
-import com.ibm.wala.ipa.callgraph.AnalysisOptions;
-import com.ibm.wala.ipa.callgraph.AnalysisScope;
-import com.ibm.wala.ipa.callgraph.CGNode;
-import com.ibm.wala.ipa.callgraph.CallGraph;
-import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
-import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
-import com.ibm.wala.ipa.callgraph.Entrypoint;
+import com.ibm.wala.ipa.callgraph.*;
+import com.ibm.wala.ipa.callgraph.impl.ContextInsensitiveSelector;
 import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ipa.callgraph.impl.Util;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.PropagationCallGraphBuilder;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -42,6 +38,8 @@ import com.ibm.wala.shrike.shrikeCT.ClassWriter;
 import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
+import com.ibm.wala.util.config.FileOfClasses;
+import com.ibm.wala.util.intset.IntSet;
 
 public class MiniJar {
   private static final String USAGE =
@@ -127,7 +125,7 @@ public class MiniJar {
 
     String[] mClasses = new String[mainClasses.size()];
     Set<String> cg = cw.getReachableMethods(mainClasses.toArray(mClasses), scopeFileData, entryClass, entrypointMethods, includedPaths);
-   
+
     while ((ci = instrumenter.nextClass()) != null) {
       try {
         cw.processClass(ci, cg, includedPaths);
@@ -231,6 +229,7 @@ public class MiniJar {
 	  AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
 	
 	  IClassHierarchy cha = ClassHierarchyFactory.make(scope);
+	  addDefaultExclusions(scope);
 	  System.out.println(cha.getNumberOfClasses() + " classes");
 	  System.out.println(Warnings.asString());
 	  Warnings.clear();
@@ -252,16 +251,70 @@ public class MiniJar {
 	  }
 
 	  // you can dial down reflection handling if you like
-	  //options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
 	  options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
+	  //options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NONE);
 	  AnalysisCache cache = new AnalysisCacheImpl();
-	
-	  CallGraphBuilder<InstanceKey> builder = Util.makeRTABuilder(options, cache, cha, scope);
-	  //CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
+
+          //CallGraphBuilder builder = Util.makeZeroOneCFABuilder(Language.JAVA, options, cache, cha, scope);
+
+          //CallGraphBuilder<InstanceKey> builder = Util.makeRTABuilder(options, cache, cha, scope);
+	  CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
 	  //CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
 	  //CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
 	  //CallGraphBuilder builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
-	
+
+	  options.setSelector(new ClassTargetSelector() {
+		  ClassTargetSelector base = options.getClassTargetSelector();
+		  Set<IClass> seen = new HashSet<>();
+		  FileWriter log = new FileWriter("seenNOFLOWClasses.txt");
+
+		  @Override
+		  public IClass getAllocatedTarget(CGNode caller, NewSiteReference site) {
+			  IClass baseC = base.getAllocatedTarget(caller, site);
+
+			  if (!seen.contains(baseC)) {
+				  seen.add(baseC);
+				  try {
+				        log.write("**** SEEN: " + baseC + "\n");
+				        log.flush();
+				  } catch (IOException e) {
+				  	System.err.println(e);
+				  }
+
+			  }
+			  return baseC;
+		  }
+	  });
+
+	  PropagationCallGraphBuilder propBuilder = ((PropagationCallGraphBuilder) builder);
+
+	  propBuilder.setContextSelector(new ContextSelector() {
+	  	  ContextSelector base = propBuilder.getContextSelector();
+	  	  ClassFactoryContextSelector fac = new ClassFactoryContextSelector();
+		  FileWriter log = new FileWriter("seenReflectiveClasses.txt");
+
+		  @Override
+		  public Context getCalleeTarget(CGNode caller, CallSiteReference site, IMethod callee, InstanceKey[] actualParameters) {
+		  	Context con = fac.getCalleeTarget(caller, site, callee, actualParameters);
+		  	if (con instanceof JavaTypeContext) {
+		  		JavaTypeContext javaCon  = (JavaTypeContext) con;
+		  		try {
+		  		        log.write(javaCon.getType().getType().toString() + "\n");
+		  		        log.flush();
+		  		} catch (IOException e) {
+				        System.err.println(e);
+			        }
+		        }
+		  	return base.getCalleeTarget(caller, site, callee, actualParameters);
+		  }
+
+		  @Override
+		  public IntSet getRelevantParameters(CGNode caller, CallSiteReference site) {
+			  return base.getRelevantParameters(caller, site);
+		  }
+	  });
+
+
 	  System.out.println("building call graph...");
 	  CallGraph cg = builder.makeCallGraph(options, null);
 	  System.out.println("done! " + cg.getNumberOfNodes());
@@ -283,7 +336,7 @@ public class MiniJar {
     allMethods.addAll(MethodUtil.getSuperMethods(m,cha));
 
     // Process for call sites
-    n.iterateCallSites().forEachRemaining(call -> {
+    /*n.iterateCallSites().forEachRemaining(call -> {
       if (call.getDeclaredTarget().equals(MethodReference.JavaLangClassNewInstance)) {
         Set<CGNode> targets = cg.getPossibleTargets(n, call);
         if (targets.isEmpty()) {
@@ -305,10 +358,29 @@ public class MiniJar {
         }
       
     });
+    */
+
     
   }
 
+	private static final String EXCLUSIONS = "java\\/awt\\/.*\n" +
+		"javax\\/swing\\/.*\n" +
+		"sun\\/awt\\/.*\n" +
+		"sun\\/swing\\/.*\n" +
+		"com\\/sun\\/.*\n" +
+		"sun\\/.*\n" +
+		"org\\/netbeans\\/.*\n" +
+		"org\\/openide\\/.*\n" +
+		"com\\/ibm\\/crypto\\/.*\n" +
+		"com\\/ibm\\/security\\/.*\n" +
+		"org\\/apache\\/xerces\\/.*\n" +
+		"java\\/security\\/.*\n" +
+		"jdk\\/.*\n" +
+		"";
 
+	public static void addDefaultExclusions(AnalysisScope scope) throws UnsupportedEncodingException, IOException {
+		scope.setExclusions(new FileOfClasses(new ByteArrayInputStream(EXCLUSIONS.getBytes("UTF-8"))));
+	}
 
   
 }

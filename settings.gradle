@@ -8,4 +8,4 @@
  */
 
 rootProject.name = 'minijar'
-include('lib')
+

@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="WALA.com.ibm.wala.ide.jsdt" />
+        <module name="WALA.com.ibm.wala.cast.java.test.data" />
+        <module name="WALA.com.ibm.wala.ide.jdt.test" />
+        <module name="WALA.com.ibm.wala.ide_feature" />
+        <module name="WALA.com.ibm.wala-repository" />
+        <module name="WALA.com.ibm.wala.ide" />
+        <module name="WALA.com.ibm.wala.ide.tests" />
+        <module name="WALA.com.ibm.wala.ide.jsdt.tests" />
+        <module name="WALA.com.ibm.wala.ide.jdt" />
+      </profile>
+    </annotationProcessing>
     <bytecodeTargetLevel target="11">
       <module name="e47" target="1.5" />
       <module name="targets" target="1.5" />
