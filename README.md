@@ -16,12 +16,11 @@ To run MiniJar:
 ```
 
 MiniJar accepts the following arguments:
-```<jarfile>                 Path to the jar file to reduce
-   -d <scopeDataFile>        Path to a scope data file 
-   -m <mainClass>            Provide one or more mainClasses
-   -e <entryClass>           Provide one or more entryClasses (optional)
-   -p <entryPointFile>       Provide an entrypoint file (optional)
-   -o <jarfile>              Path to the output jar file 
+```-d <scopeDataFile>         Path to a scope data file 
+   -m <mainClass>             Provide one or more mainClasses
+   -p <entryPointsFile>       Provide an entrypoint file (optional)
+   -i <inclusionsFile>        Provide an inclusion file (optional)
+   -o <jarfile>               Path to the output jar file 
 ```
 
 The `scopeDataFile` is a required argument and is a path to a file of the form:
@@ -44,10 +43,10 @@ Primordial,Java,jarFile,primordial.jar.model
 Application,Java,jarFile,Example-0.1.0.jar
 ```
 
-Notice that the `mainClass` and `entryClass` are specified in standard Java descriptor format (e.g., `Lshape/Example`).
+Notice that the `mainClass` is specified in standard Java descriptor format (e.g., `Lshape/Example`).
 Similarly the entrypoint file contains a list of methods specified in this standard format (e.g., `Lorg/jboss/logmanager/LogManager#<init>()V`).
 
-Entryclasses and entrypoint files can be used to ensure that the call graph algorithm takes these methods into account so that they are guaranteed to be reachable. This can be useful when the algorithm misses methods due to reflection.
+Entrypoint files can be used to ensure that the call graph algorithm takes these methods into account so that they are guaranteed to be reachable. This can be useful when the algorithm misses methods due to reflection.
 
 The result of running the above `.gradlew` command is an output jar `out.jar` that is similar to the input jar `Example-0.1.0.jar` but with unreachable methods removed. The output jar is also executable and leads to the same ouptut as the original jar when executed (via `java -jar out.jar`).
 

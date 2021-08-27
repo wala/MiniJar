@@ -15,7 +15,6 @@ public class MethodDescriptor {
     String methodName;
     String methodType;
 
-
     public MethodDescriptor(String className, String methodName, String methodType) {
         this.className = className;
         this.methodName = methodName;
@@ -56,12 +55,10 @@ public class MethodDescriptor {
         return MethodReference.findOrCreate(typeRef, selector);
       }
 
-
     public Entrypoint getEntrypoint(IClassHierarchy cha) {
         MethodReference metRef = getMethodReference();
         return new DefaultEntrypoint(metRef, cha);
     }
-
 
     public boolean isReachable(Set<String> cg, Set<String> includedPaths) {
         String desc = toString();
@@ -77,7 +74,8 @@ public class MethodDescriptor {
                 System.out.println("Reachable by inclusion: " + desc);
                 return true;
             }
-        }   
+        }
+
         boolean reachable = cg.contains(desc);
         if (reachable) {
             System.out.println("Reachable by cg: " + desc);
@@ -102,7 +100,6 @@ public class MethodDescriptor {
       return false;
     }
 
-
     public String toString() {
         String ret = className + "#" + methodName + methodType;
         if (className.startsWith("L")) {
@@ -110,6 +107,4 @@ public class MethodDescriptor {
         }
         return "L" + ret;
     }
-
-
 }

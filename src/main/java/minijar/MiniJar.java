@@ -7,11 +7,11 @@
 package minijar;
 
 import java.io.*;
+import java.net.URL;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
 import com.google.common.collect.Sets;
@@ -20,7 +20,10 @@ import com.ibm.wala.analysis.reflection.ClassFactoryContextInterpreter;
 import com.ibm.wala.analysis.reflection.ClassFactoryContextSelector;
 import com.ibm.wala.analysis.reflection.JavaTypeContext;
 import com.ibm.wala.classLoader.*;
+import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
+import com.ibm.wala.core.util.io.FileProvider;
+import com.ibm.wala.core.util.strings.Atom;
 import com.ibm.wala.core.util.warnings.Warnings;
 import com.ibm.wala.ipa.callgraph.*;
 import com.ibm.wala.ipa.callgraph.impl.ContextInsensitiveSelector;
@@ -36,6 +39,7 @@ import com.ibm.wala.shrike.shrikeBT.shrikeCT.OfflineInstrumenter;
 import com.ibm.wala.shrike.shrikeCT.ClassReader;
 import com.ibm.wala.shrike.shrikeCT.ClassWriter;
 import com.ibm.wala.shrike.shrikeCT.ConstantPoolParser;
+import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.config.FileOfClasses;
@@ -45,15 +49,13 @@ public class MiniJar {
   private static final String USAGE =
       "MiniJar usage:\n"
           + "This tool takes the following command line options:\n"
-          + "    <jarname> <jarname> ...   Process the classes from these jars\n"
-          + "    -m <mainClass>            Provide one or more mainClassed\n"
-          + "    -e <entryClass>           Provide one or more entryClassed\n"
+          + "    -m <mainClass>            Provide one or more mainClasses\n"
           + "    -d <scopeDataFile>        Provide a scope data file\n"  
-          + "    -p <entryPointFile>       Provide an entrypoint file\n"
-          + "    -o <jarname>              Put the resulting classes into <jarname>\n";
+          + "    -p <entryPointsFile>      Provide an entrypoint file\n"
+          + "    -i <inclusionsFile>       Provide an inclusion file\n"
+          + "    -o <outputJarName>        Put the resulting classes into <outputJarName>\n";
 
   private static OfflineInstrumenter instrumenter;
-
 
   static class UnknownAttributeException extends Exception {
     private static final long serialVersionUID = 8845177787110364793L;
@@ -69,7 +71,8 @@ public class MiniJar {
       System.exit(1);
     }
 
-    String jarFile = "";
+    String inJarFile = "";
+    String outJarFile = "";
     Set<String> mainClasses = new HashSet<String>();
     String scopeFileData = "";
     String entryClass = "";
@@ -80,28 +83,20 @@ public class MiniJar {
       if (args[i] == null) {
         throw new IllegalArgumentException("args[" + i + "] is null");
       }
-      if (!args[i].startsWith("-") && args[i].endsWith("jar")) {
-          jarFile = args[i];  // Assuming a single jar is passed in
-      }
-      if (args[i].startsWith("-m")) {
-    	  mainClasses.add(args[i+1]);
-      }
-      if (args[i].startsWith("-d")) {
-    	  scopeFileData = args[i+1];
-      }
-      if (args[i].startsWith("-e")) {
-    	  entryClass = args[i+1];
-      }
-      if (args[i].startsWith("-i")) {
+      if (args[i].equals("-o") && i + 1 < args.length) {
+          outJarFile = args[i+1];
+          i = i + 2;
+      } else if (!args[i].startsWith("-") && args[i].endsWith("jar")) {
+          inJarFile = args[i];  // Assuming a single jar is passed in
+      } else if (args[i].equals("-m")) {
+    	mainClasses.add(args[i+1]);
+      } else if (args[i].equals("-d")) {
+    	scopeFileData = args[i+1];
+      } else if (args[i].equals("-i")) {
         inclusionsFile = args[i+1];
-      }
-      if (args[i].startsWith("-p")) {
+      } else if (args[i].equals("-p")) {
         entrypointsFile = args[i+1];
       }
-    }
-    
-    if (jarFile == "") {
-    	throw new IllegalArgumentException("No Jar file specified");
     }
     
     Set<String> entrypointMethods = null;
@@ -119,6 +114,34 @@ public class MiniJar {
     instrumenter = new OfflineInstrumenter();
     instrumenter.setManifestBuilder(entries::add);
     instrumenter.parseStandardArgs(args);
+
+      if (inJarFile == "") { //read input jar file from scope file data
+          String line;
+
+          File scopeFile = new File(scopeFileData);
+          if (scopeFile.exists()) {
+              BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(scopeFile), "UTF-8"));
+              while ((line = r.readLine()) != null) {
+                  StringTokenizer toks = new StringTokenizer(line, "\n,");
+                  if (!toks.hasMoreTokens()) {
+                      return;
+                  }
+                  Atom loaderName = Atom.findOrCreateUnicodeAtom(toks.nextToken());
+                  String language = toks.nextToken();
+                  String entryType = toks.nextToken();
+                  String entryPathname = toks.nextToken();
+                  if (loaderName.equals(ClassLoaderReference.Application.getName())
+                          && language.equals(Language.JAVA.toString())
+                          && "jarFile".equals(entryType)
+                          && entryPathname.endsWith("jar")) {
+                      URL url = MiniJar.class.getClassLoader().getResource(entryPathname);
+                      inJarFile = new File(URLDecoder.decode(url.getPath(), "UTF-8")).toURI().getPath();;
+                  }
+              }
+          }
+          instrumenter.addInputJar(new File(inJarFile));
+      }
+
     instrumenter.beginTraversal();
     ClassInstrumenter ci;
     MiniJar cw = new MiniJar();
@@ -210,8 +233,6 @@ public class MiniJar {
     ci.emitClass(cw);
     instrumenter.outputModifiedClass(ci, cw);
   }
-
-  
   
   private Set<Entrypoint> getEntrypoints(Set<String> methods, IClassHierarchy cha) {
     Set<Entrypoint> ret = new HashSet<Entrypoint>();
@@ -225,9 +246,7 @@ public class MiniJar {
   }
 
   private Set<String> getReachableMethods(String[] mainClasses, String scopeFileData, String entryClass, Set<String> entrypointMethods, Set<String> includedPaths) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-	  //AnalysisScope scope = new Java9AnalysisScopeReader().makeJavaBinaryAnalysisScope(scopeFile, null);
 	  AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
-
 	  addDefaultExclusions(scope);
 	  IClassHierarchy cha = ClassHierarchyFactory.make(scope);
 
@@ -235,6 +254,7 @@ public class MiniJar {
 	  System.out.println(Warnings.asString());
 	  Warnings.clear();
 	  AnalysisOptions options = new AnalysisOptions();
+
 	  Iterable<Entrypoint> entrypoints = Util.makeMainEntrypoints(scope, cha, mainClasses);
 	  Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
 	  entrypoints.forEach(e -> entrypointsSet.add(e));
@@ -244,25 +264,11 @@ public class MiniJar {
 	  options.setEntrypoints(entrypointsSet);
 	  System.out.println("entrypoints:" + entrypointsSet.size());
 
-	  if (entryClass != "") {
-		  Iterable<Entrypoint> entrypointsP = EntrypointUtil.makePublicEntrypoints(cha, entryClass);
-		  entrypointsP.forEach(e -> entrypointsSet.add(e));
-		  System.out.println("entrypointsP:" + entrypointsSet.size());
-		  options.setEntrypoints(entrypointsP); //Temporary overriding of main entrypoint(s) - might need to concat both iterables for main and non-main
-	  }
-
 	  // you can dial down reflection handling if you like
 	  options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
-	  //options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NONE);
+
 	  AnalysisCache cache = new AnalysisCacheImpl();
-
-          //CallGraphBuilder builder = Util.makeZeroOneCFABuilder(Language.JAVA, options, cache, cha, scope);
-
-          //CallGraphBuilder<InstanceKey> builder = Util.makeRTABuilder(options, cache, cha, scope);
 	  CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
-	  //CallGraphBuilder builder = Util.makeNCFABuilder(2, options, cache, cha, scope);
-	  //CallGraphBuilder builder = Util.makeVanillaNCFABuilder(2, options, cache, cha, scope);
-	  //CallGraphBuilder builder = Util.makeZeroOneContainerCFABuilder(options, cache, cha, scope);
 
 	  options.setSelector(new ClassTargetSelector() {
 		  ClassTargetSelector base = options.getClassTargetSelector();
@@ -288,7 +294,6 @@ public class MiniJar {
 	  });
 
 	  PropagationCallGraphBuilder propBuilder = ((PropagationCallGraphBuilder) builder);
-
 	  propBuilder.setContextSelector(new ContextSelector() {
 	  	  ContextSelector base = propBuilder.getContextSelector();
 	  	  ClassFactoryContextSelector fac = new ClassFactoryContextSelector();
@@ -337,7 +342,7 @@ public class MiniJar {
     allMethods.addAll(MethodUtil.getSuperMethods(m,cha));
 
     // Process for call sites
-    /*n.iterateCallSites().forEachRemaining(call -> {
+    n.iterateCallSites().forEachRemaining(call -> {
       if (call.getDeclaredTarget().equals(MethodReference.JavaLangClassNewInstance)) {
         Set<CGNode> targets = cg.getPossibleTargets(n, call);
         if (targets.isEmpty()) {
@@ -357,11 +362,7 @@ public class MiniJar {
           	System.out.println(" BOGUS For Name with generic target, node: " + n + " call: " + call);
           }
         }
-      
     });
-    */
-
-    
   }
 
 	private static final String EXCLUSIONS = "java/awt/.*\n" +
@@ -383,5 +384,4 @@ public class MiniJar {
 		scope.setExclusions(new FileOfClasses(new ByteArrayInputStream(EXCLUSIONS.getBytes("UTF-8"))));
 	}
 
-  
 }
