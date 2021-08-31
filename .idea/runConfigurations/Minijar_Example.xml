@@ -1,10 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="MiniJar Getting Started" type="Application" factoryName="Application">
+  <configuration default="false" name="Minijar Example" type="Application" factoryName="Application">
     <option name="ALTERNATIVE_JRE_PATH" value="11 (2)" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="minijar.MiniJar" />
     <module name="minijar.main" />
-    <option name="PROGRAM_PARAMETERS" value="-m Lio/quarkus/runner/GeneratedMain -d src/main/resources/wala.data.getting.started.txt -p src/main/resources/entrypoints-getting-started.txt -o out.jar" />
+    <option name="PROGRAM_PARAMETERS" value="-m Lshape/Example -d src/main/resources/wala.data.example1.txt -o out.jar" />
     <option name="VM_PARAMETERS" value="-Xmx20G" />
     <extension name="coverage">
       <pattern>
