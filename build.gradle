@@ -42,13 +42,13 @@ dependencies {
     // This dependency is exported to consumers, that is to say found on their compile classpath.
    // api 'org.apache.commons:commons-math3:3.6.1'
     
-    def walaVersion = '1.5.7-SNAPSHOT'
+    def walaVersion = '1.6.0-SNAPSHOT'
 
         
-    implementation "WALA:com.ibm.wala.shrike:${walaVersion}"
-    implementation "WALA:com.ibm.wala.util:${walaVersion}"
-    implementation "WALA:com.ibm.wala.core:${walaVersion}"
-    implementation "WALA:com.ibm.wala.core.java11:${walaVersion}"
+    implementation "com.ibm.wala:com.ibm.wala.shrike:${walaVersion}"
+    implementation "com.ibm.wala:com.ibm.wala.util:${walaVersion}"
+    implementation "com.ibm.wala:com.ibm.wala.core:${walaVersion}"
+    implementation "com.ibm.wala:com.ibm.wala.core.java11:${walaVersion}"
     
     
 

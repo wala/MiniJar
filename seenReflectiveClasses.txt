@@ -1,4 +1,0 @@
-<Application,Lorg/jboss/resteasy/microprofile/config/ServletConfigSourceImpl>
-<Application,Lorg/jboss/resteasy/microprofile/config/FilterConfigSourceImpl>
-<Application,Lorg/jboss/resteasy/microprofile/config/ServletContextConfigSourceImpl>
-<Primordial,Lmodule-info>

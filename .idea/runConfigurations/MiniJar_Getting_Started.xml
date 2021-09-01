@@ -4,7 +4,8 @@
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="minijar.MiniJar" />
     <module name="minijar.main" />
-    <option name="PROGRAM_PARAMETERS" value="--stacktrace -Xmx10000m ~/quarkus-workspace/minijar/src/main/resources/getting-started-uber.jar  -m Lio/quarkus/runner/GeneratedMain -d src/main/resources/wala.data.getting.started.txt -p src/main/resources/entrypoints-getting-started.txt -o out.jar &gt; output.txt" />
+    <option name="PROGRAM_PARAMETERS" value="-m Lio/quarkus/runner/GeneratedMain -d src/main/resources/wala.data.getting.started.txt -p src/main/resources/entrypoints-getting-started.txt -o out.jar" />
+    <option name="VM_PARAMETERS" value="-Xmx20G" />
     <extension name="coverage">
       <pattern>
         <option name="PATTERN" value="minijar.*" />

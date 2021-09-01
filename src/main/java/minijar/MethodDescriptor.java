@@ -1,3 +1,16 @@
+/*
+ * Copyright (c) 2021 IBM Corporation.
+ * All rights reserved. 
+ * 
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *     IBM Corporation - initial implementation
+ */
 package minijar;
 
 import java.util.Set;
@@ -14,7 +27,6 @@ public class MethodDescriptor {
     String className;
     String methodName;
     String methodType;
-
 
     public MethodDescriptor(String className, String methodName, String methodType) {
         this.className = className;
@@ -56,12 +68,10 @@ public class MethodDescriptor {
         return MethodReference.findOrCreate(typeRef, selector);
       }
 
-
     public Entrypoint getEntrypoint(IClassHierarchy cha) {
         MethodReference metRef = getMethodReference();
         return new DefaultEntrypoint(metRef, cha);
     }
-
 
     public boolean isReachable(Set<String> cg, Set<String> includedPaths) {
         String desc = toString();
@@ -77,7 +87,8 @@ public class MethodDescriptor {
                 System.out.println("Reachable by inclusion: " + desc);
                 return true;
             }
-        }   
+        }
+
         boolean reachable = cg.contains(desc);
         if (reachable) {
             System.out.println("Reachable by cg: " + desc);
@@ -102,7 +113,6 @@ public class MethodDescriptor {
       return false;
     }
 
-
     public String toString() {
         String ret = className + "#" + methodName + methodType;
         if (className.startsWith("L")) {
@@ -110,6 +120,4 @@ public class MethodDescriptor {
         }
         return "L" + ret;
     }
-
-
 }
