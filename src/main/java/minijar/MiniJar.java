@@ -13,27 +13,15 @@
  */
 package minijar;
 
-import java.io.*;
-import java.net.URL;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
-
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import com.ibm.wala.analysis.reflection.ClassFactoryContextInterpreter;
 import com.ibm.wala.analysis.reflection.ClassFactoryContextSelector;
 import com.ibm.wala.analysis.reflection.JavaTypeContext;
 import com.ibm.wala.classLoader.*;
-import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.core.java11.Java9AnalysisScopeReader;
-import com.ibm.wala.core.util.io.FileProvider;
 import com.ibm.wala.core.util.strings.Atom;
 import com.ibm.wala.core.util.warnings.Warnings;
 import com.ibm.wala.ipa.callgraph.*;
-import com.ibm.wala.ipa.callgraph.impl.ContextInsensitiveSelector;
 import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ipa.callgraph.impl.Util;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
@@ -51,6 +39,13 @@ import com.ibm.wala.types.MethodReference;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.config.FileOfClasses;
 import com.ibm.wala.util.intset.IntSet;
+
+import java.io.*;
+import java.net.URL;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.zip.ZipEntry;
 
 public class MiniJar {
   private static final String USAGE =
