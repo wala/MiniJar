@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2021 IBM Corporation.
- * All rights reserved. 
- * 
+ * All rights reserved.
+ *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -26,6 +26,7 @@ import com.ibm.wala.ipa.callgraph.impl.Everywhere;
 import com.ibm.wala.ipa.callgraph.impl.Util;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.callgraph.propagation.PropagationCallGraphBuilder;
+import com.ibm.wala.ipa.callgraph.propagation.SSAPropagationCallGraphBuilder;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ipa.cha.ClassHierarchyFactory;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -52,20 +53,26 @@ public class MiniJar {
       "MiniJar usage:\n"
           + "This tool takes the following command line options:\n"
           + "    -m <mainClass>            Provide one or more mainClasses\n"
-          + "    -d <scopeDataFile>        Provide a scope data file\n"  
+          + "    -d <scopeDataFile>        Provide a scope data file\n"
           + "    -p <entryPointsFile>      Provide an entrypoint file\n"
           + "    -i <inclusionsFile>       Provide an inclusion file\n"
           + "    -o <outputJarName>        Put the resulting classes into <outputJarName>\n";
-
+  private static final String EXCLUSIONS =
+      "java/awt/.*\n"
+          + "javax/swing/.*\n"
+          + "sun/awt/.*\n"
+          + "sun/swing/.*\n"
+          + "com/sun/.*\n"
+          + "sun/.*\n"
+          + "org/netbeans/.*\n"
+          + "org/openide/.*\n"
+          + "com/ibm/crypto/.*\n"
+          + "com/ibm/security/.*\n"
+          + "org/apache/xerces/.*\n"
+          + "java/security/.*\n"
+          + "jdk/.*\n"
+          + "";
   private static OfflineInstrumenter instrumenter;
-
-  static class UnknownAttributeException extends Exception {
-    private static final long serialVersionUID = 8845177787110364793L;
-
-    UnknownAttributeException(String t) {
-      super("Attribute '" + t + "' not understood");
-    }
-  }
 
   public static void main(String[] args) throws Exception {
     if (args == null || args.length == 0) {
@@ -86,29 +93,31 @@ public class MiniJar {
         throw new IllegalArgumentException("args[" + i + "] is null");
       }
       if (args[i].equals("-o") && i + 1 < args.length) {
-          outJarFile = args[i+1];
-          i = i + 2;
+        outJarFile = args[i + 1];
+        i = i + 2;
       } else if (!args[i].startsWith("-") && args[i].endsWith("jar")) {
-          inJarFile = args[i];  // Assuming a single jar is passed in
+        inJarFile = args[i]; // Assuming a single jar is passed in
       } else if (args[i].equals("-m")) {
-    	mainClasses.add(args[i+1]);
+        mainClasses.add(args[i + 1]);
       } else if (args[i].equals("-d")) {
-    	scopeFileData = args[i+1];
+        scopeFileData = args[i + 1];
       } else if (args[i].equals("-i")) {
-        inclusionsFile = args[i+1];
+        inclusionsFile = args[i + 1];
       } else if (args[i].equals("-p")) {
-        entrypointsFile = args[i+1];
+        entrypointsFile = args[i + 1];
       }
     }
-    
+
     Set<String> entrypointMethods = null;
     if (!entrypointsFile.equals("")) {
-      entrypointMethods = Sets.newHashSet(Files.readLines(new File(entrypointsFile), StandardCharsets.UTF_8));
+      entrypointMethods =
+          Sets.newHashSet(Files.readLines(new File(entrypointsFile), StandardCharsets.UTF_8));
     }
 
     Set<String> includedPaths = null;
     if (!inclusionsFile.equals("")) {
-      includedPaths = Sets.newHashSet(Files.readLines(new File(inclusionsFile), StandardCharsets.UTF_8));
+      includedPaths =
+          Sets.newHashSet(Files.readLines(new File(inclusionsFile), StandardCharsets.UTF_8));
     }
 
     final ArrayList<ZipEntry> entries = new ArrayList<>();
@@ -117,39 +126,47 @@ public class MiniJar {
     instrumenter.setManifestBuilder(entries::add);
     instrumenter.parseStandardArgs(args);
 
-      if (inJarFile == "") { //read input jar file from scope file data
-          String line;
+    if (inJarFile == "") { // read input jar file from scope file data
+      String line;
 
-          File scopeFile = new File(scopeFileData);
-          if (scopeFile.exists()) {
-              BufferedReader r = new BufferedReader(new InputStreamReader(new FileInputStream(scopeFile), "UTF-8"));
-              while ((line = r.readLine()) != null) {
-                  StringTokenizer toks = new StringTokenizer(line, "\n,");
-                  if (!toks.hasMoreTokens()) {
-                      return;
-                  }
-                  Atom loaderName = Atom.findOrCreateUnicodeAtom(toks.nextToken());
-                  String language = toks.nextToken();
-                  String entryType = toks.nextToken();
-                  String entryPathname = toks.nextToken();
-                  if (loaderName.equals(ClassLoaderReference.Application.getName())
-                          && language.equals(Language.JAVA.toString())
-                          && "jarFile".equals(entryType)
-                          && entryPathname.endsWith("jar")) {
-                      URL url = MiniJar.class.getClassLoader().getResource(entryPathname);
-                      inJarFile = new File(URLDecoder.decode(url.getPath(), "UTF-8")).toURI().getPath();;
-                  }
-              }
+      File scopeFile = new File(scopeFileData);
+      if (scopeFile.exists()) {
+        BufferedReader r =
+            new BufferedReader(new InputStreamReader(new FileInputStream(scopeFile), "UTF-8"));
+        while ((line = r.readLine()) != null) {
+          StringTokenizer toks = new StringTokenizer(line, "\n,");
+          if (!toks.hasMoreTokens()) {
+            return;
           }
-          instrumenter.addInputJar(new File(inJarFile));
+          Atom loaderName = Atom.findOrCreateUnicodeAtom(toks.nextToken());
+          String language = toks.nextToken();
+          String entryType = toks.nextToken();
+          String entryPathname = toks.nextToken();
+          if (loaderName.equals(ClassLoaderReference.Application.getName())
+              && language.equals(Language.JAVA.toString())
+              && "jarFile".equals(entryType)
+              && entryPathname.endsWith("jar")) {
+            URL url = MiniJar.class.getClassLoader().getResource(entryPathname);
+            inJarFile = new File(URLDecoder.decode(url.getPath(), "UTF-8")).toURI().getPath();
+            ;
+          }
+        }
       }
+      instrumenter.addInputJar(new File(inJarFile));
+    }
 
     instrumenter.beginTraversal();
     ClassInstrumenter ci;
     MiniJar cw = new MiniJar();
 
     String[] mClasses = new String[mainClasses.size()];
-    Set<String> cg = cw.getReachableMethods(mainClasses.toArray(mClasses), scopeFileData, entryClass, entrypointMethods, includedPaths);
+    Set<String> cg =
+        cw.getReachableMethods(
+            mainClasses.toArray(mClasses),
+            scopeFileData,
+            entryClass,
+            entrypointMethods,
+            includedPaths);
 
     while ((ci = instrumenter.nextClass()) != null) {
       try {
@@ -162,83 +179,126 @@ public class MiniJar {
     instrumenter.close();
   }
 
-  private void processClass(final ClassInstrumenter ci, Set<String> cg, Set<String> includedPaths) throws Exception {
+  private static void processMethod(
+      Set<String> allMethods, CGNode n, IClassHierarchy cha, CallGraph cg) {
+    IMethod m = n.getMethod();
+    String desc = new MethodDescriptor(m).toString();
+    allMethods.add(desc);
+    allMethods.addAll(MethodUtil.getSuperMethods(m, cha));
+
+    // Process for call sites
+    n.iterateCallSites()
+        .forEachRemaining(
+            call -> {
+              if (call.getDeclaredTarget().equals(MethodReference.JavaLangClassNewInstance)) {
+                Set<CGNode> targets = cg.getPossibleTargets(n, call);
+                if (targets.isEmpty()) {
+                  System.out.println(" BOGUS New Instance, node: " + n + " call: " + call);
+                }
+                if (targets.size() == 1
+                    && targets.iterator().next().getContext().equals(Everywhere.EVERYWHERE)) {
+                  System.out.println(
+                      " BOGUS New Instance with generic target, node: " + n + " call: " + call);
+                }
+              }
+
+              if (call.getDeclaredTarget().equals(MethodReference.JavaLangClassForName)) {
+                Set<CGNode> targets = cg.getPossibleTargets(n, call);
+                if (targets.isEmpty()) {
+                  System.out.println(" BOGUS For Name, node: " + n + " call: " + call);
+                }
+                if (targets.size() == 1
+                    && targets.iterator().next().getContext().equals(Everywhere.EVERYWHERE)) {
+                  System.out.println(
+                      " BOGUS For Name with generic target, node: " + n + " call: " + call);
+                }
+              }
+            });
+  }
+
+  public static void addDefaultExclusions(AnalysisScope scope)
+      throws UnsupportedEncodingException, IOException {
+    scope.setExclusions(new FileOfClasses(new ByteArrayInputStream(EXCLUSIONS.getBytes("UTF-8"))));
+  }
+
+  private void processClass(final ClassInstrumenter ci, Set<String> cg, Set<String> includedPaths)
+      throws Exception {
     ClassReader cr = ci.getReader();
-    
+
     ClassWriter cw =
-            new ClassWriter() {
-              private final Map<Object, Integer> entries = HashMapFactory.make();
+        new ClassWriter() {
+          private final Map<Object, Integer> entries = HashMapFactory.make();
 
-              {
-                ConstantPoolParser p = cr.getCP();
-                for (int i = 1; i < p.getItemCount(); i++) {
-                  final byte itemType = p.getItemType(i);
-                  switch (itemType) {
-                    case CONSTANT_Integer:
-                      entries.put(p.getCPInt(i), i);
-                      break;
-                    case CONSTANT_Long:
-                      entries.put(p.getCPLong(i), i);
-                      break;
-                    case CONSTANT_Float:
-                      entries.put(p.getCPFloat(i), i);
-                      break;
-                    case CONSTANT_Double:
-                      entries.put(p.getCPDouble(i), i);
-                      break;
-                    case CONSTANT_Utf8:
-                      entries.put(p.getCPUtf8(i), i);
-                      break;
-                    case CONSTANT_String:
-                      entries.put(new CWStringItem(p.getCPString(i), CONSTANT_String), i);
-                      break;
-                    case CONSTANT_Class:
-                      entries.put(new CWStringItem(p.getCPClass(i), CONSTANT_Class), i);
-                      break;
-                    default:
-                      // do nothing
-                  }
-                }
+          {
+            ConstantPoolParser p = cr.getCP();
+            for (int i = 1; i < p.getItemCount(); i++) {
+              final byte itemType = p.getItemType(i);
+              switch (itemType) {
+                case CONSTANT_Integer:
+                  entries.put(p.getCPInt(i), i);
+                  break;
+                case CONSTANT_Long:
+                  entries.put(p.getCPLong(i), i);
+                  break;
+                case CONSTANT_Float:
+                  entries.put(p.getCPFloat(i), i);
+                  break;
+                case CONSTANT_Double:
+                  entries.put(p.getCPDouble(i), i);
+                  break;
+                case CONSTANT_Utf8:
+                  entries.put(p.getCPUtf8(i), i);
+                  break;
+                case CONSTANT_String:
+                  entries.put(new CWStringItem(p.getCPString(i), CONSTANT_String), i);
+                  break;
+                case CONSTANT_Class:
+                  entries.put(new CWStringItem(p.getCPClass(i), CONSTANT_Class), i);
+                  break;
+                default:
+                  // do nothing
               }
+            }
+          }
 
-              private int findExistingEntry(Object o) {
-                return entries.getOrDefault(o, -1);
-              }
+          private int findExistingEntry(Object o) {
+            return entries.getOrDefault(o, -1);
+          }
 
-              @Override
-              protected int addCPEntry(Object o, int size) {
-                int entry = findExistingEntry(o);
-                if (entry != -1) {
-                  return entry;
-                } else {
-                  return super.addCPEntry(o, size);
-                }
-              }
-            };
-    
+          @Override
+          protected int addCPEntry(Object o, int size) {
+            int entry = findExistingEntry(o);
+            if (entry != -1) {
+              return entry;
+            } else {
+              return super.addCPEntry(o, size);
+            }
+          }
+        };
+
     String className = cr.getName();
 
     ClassReader.AttrIterator iter = new ClassReader.AttrIterator();
 
     int methodCount = cr.getMethodCount();
-    
+
     for (int i = 0; i < methodCount; i++) {
       cr.initMethodAttributeIterator(i, iter);
       String methodName = cr.getMethodName(i);
       String methodType = cr.getMethodType(i);
 
       if (!new MethodDescriptor(className, methodName, methodType).isReachable(cg, includedPaths)) {
-    	  ci.deleteMethod(i);
+        ci.deleteMethod(i);
       }
     }
-    
+
     ci.emitClass(cw);
     instrumenter.outputModifiedClass(ci, cw);
   }
-  
+
   private Set<Entrypoint> getEntrypoints(Set<String> methods, IClassHierarchy cha) {
     Set<Entrypoint> ret = new HashSet<Entrypoint>();
-    for (String method: methods) {
+    for (String method : methods) {
       if (method.equals("")) {
         continue;
       }
@@ -247,143 +307,116 @@ public class MiniJar {
     return ret;
   }
 
-  private Set<String> getReachableMethods(String[] mainClasses, String scopeFileData, String entryClass, Set<String> entrypointMethods, Set<String> includedPaths) throws IOException, ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException {
-	  AnalysisScope scope = new Java9AnalysisScopeReader().readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
-	  addDefaultExclusions(scope);
-	  IClassHierarchy cha = ClassHierarchyFactory.make(scope);
+  private Set<String> getReachableMethods(
+      String[] mainClasses,
+      String scopeFileData,
+      String entryClass,
+      Set<String> entrypointMethods,
+      Set<String> includedPaths)
+      throws IOException, ClassHierarchyException, IllegalArgumentException,
+          CallGraphBuilderCancelException {
+    AnalysisScope scope =
+        new Java9AnalysisScopeReader()
+            .readJavaScope(scopeFileData, null, MiniJar.class.getClassLoader());
+    addDefaultExclusions(scope);
+    IClassHierarchy cha = ClassHierarchyFactory.make(scope);
 
-	  System.out.println(cha.getNumberOfClasses() + " classes");
-	  System.out.println(Warnings.asString());
-	  Warnings.clear();
-	  AnalysisOptions options = new AnalysisOptions();
+    System.out.println(cha.getNumberOfClasses() + " classes");
+    System.out.println(Warnings.asString());
+    Warnings.clear();
+    AnalysisOptions options = new AnalysisOptions();
 
-	  Iterable<Entrypoint> entrypoints = Util.makeMainEntrypoints(scope, cha, mainClasses);
-	  Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
-	  entrypoints.forEach(e -> entrypointsSet.add(e));
-	  if (entrypointMethods != null) {
-		  entrypointsSet.addAll(getEntrypoints(entrypointMethods, cha));
-	  }
-	  options.setEntrypoints(entrypointsSet);
-	  System.out.println("entrypoints:" + entrypointsSet.size());
+    Iterable<Entrypoint> entrypoints = Util.makeMainEntrypoints(scope, cha, mainClasses);
+    Set<Entrypoint> entrypointsSet = new HashSet<Entrypoint>();
+    entrypoints.forEach(e -> entrypointsSet.add(e));
+    if (entrypointMethods != null) {
+      entrypointsSet.addAll(getEntrypoints(entrypointMethods, cha));
+    }
+    options.setEntrypoints(entrypointsSet);
+    System.out.println("entrypoints:" + entrypointsSet.size());
 
-	  // you can dial down reflection handling if you like
-	  options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
+    // you can dial down reflection handling if you like
+    options.setReflectionOptions(AnalysisOptions.ReflectionOptions.NO_FLOW_TO_CASTS);
 
-	  AnalysisCache cache = new AnalysisCacheImpl();
-	  CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
+    AnalysisCache cache = new AnalysisCacheImpl();
+    CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
 
-	  options.setSelector(new ClassTargetSelector() {
-		  ClassTargetSelector base = options.getClassTargetSelector();
-		  Set<IClass> seen = new HashSet<>();
-		  FileWriter log = new FileWriter("seenNOFLOWClasses.txt");
+    options.setSelector(
+        new ClassTargetSelector() {
+          ClassTargetSelector base = options.getClassTargetSelector();
+          Set<IClass> seen = new HashSet<>();
+          FileWriter log = new FileWriter("seenNOFLOWClasses.txt");
 
-		  @Override
-		  public IClass getAllocatedTarget(CGNode caller, NewSiteReference site) {
-			  IClass baseC = base.getAllocatedTarget(caller, site);
+          @Override
+          public IClass getAllocatedTarget(CGNode caller, NewSiteReference site) {
+            IClass baseC = base.getAllocatedTarget(caller, site);
 
-			  if (!seen.contains(baseC)) {
-				  seen.add(baseC);
-				  try {
-				        log.write("**** SEEN: " + baseC + "\n");
-				        log.flush();
-				  } catch (IOException e) {
-				  	System.err.println(e);
-				  }
+            if (!seen.contains(baseC)) {
+              seen.add(baseC);
+              try {
+                log.write("**** SEEN: " + baseC + "\n");
+                log.flush();
+              } catch (IOException e) {
+                System.err.println(e);
+              }
+            }
+            return baseC;
+          }
+        });
 
-			  }
-			  return baseC;
-		  }
-	  });
+    PropagationCallGraphBuilder propBuilder = ((PropagationCallGraphBuilder) builder);
+    propBuilder.setContextSelector(
+        new ContextSelector() {
+          ContextSelector base = propBuilder.getContextSelector();
+          ClassFactoryContextSelector fac = new ClassFactoryContextSelector();
+          FileWriter log = new FileWriter("seenReflectiveClasses.txt");
 
-	  PropagationCallGraphBuilder propBuilder = ((PropagationCallGraphBuilder) builder);
-	  propBuilder.setContextSelector(new ContextSelector() {
-	  	  ContextSelector base = propBuilder.getContextSelector();
-	  	  ClassFactoryContextSelector fac = new ClassFactoryContextSelector();
-		  FileWriter log = new FileWriter("seenReflectiveClasses.txt");
+          @Override
+          public Context getCalleeTarget(
+              CGNode caller,
+              CallSiteReference site,
+              IMethod callee,
+              InstanceKey[] actualParameters) {
+            Context con = fac.getCalleeTarget(caller, site, callee, actualParameters);
+            if (con instanceof JavaTypeContext) {
+              JavaTypeContext javaCon = (JavaTypeContext) con;
+              try {
+                log.write(javaCon.getType().getType().toString() + "\n");
+                log.flush();
+              } catch (IOException e) {
+                System.err.println(e);
+              }
+            }
+            return base.getCalleeTarget(caller, site, callee, actualParameters);
+          }
 
-		  @Override
-		  public Context getCalleeTarget(CGNode caller, CallSiteReference site, IMethod callee, InstanceKey[] actualParameters) {
-		  	Context con = fac.getCalleeTarget(caller, site, callee, actualParameters);
-		  	if (con instanceof JavaTypeContext) {
-		  		JavaTypeContext javaCon  = (JavaTypeContext) con;
-		  		try {
-		  		        log.write(javaCon.getType().getType().toString() + "\n");
-		  		        log.flush();
-		  		} catch (IOException e) {
-				        System.err.println(e);
-			        }
-		        }
-		  	return base.getCalleeTarget(caller, site, callee, actualParameters);
-		  }
+          @Override
+          public IntSet getRelevantParameters(CGNode caller, CallSiteReference site) {
+            return base.getRelevantParameters(caller, site);
+          }
+        });
 
-		  @Override
-		  public IntSet getRelevantParameters(CGNode caller, CallSiteReference site) {
-			  return base.getRelevantParameters(caller, site);
-		  }
-	  });
+    System.out.println("building call graph...");
+    CallGraph cg = builder.makeCallGraph(options, null);
+    System.out.println("done! " + cg.getNumberOfNodes());
+    Set<String> allMethods = new HashSet<String>();
+    cg.forEach(n -> processMethod(allMethods, n, cha, cg));
+    System.out.println("number of methods: " + allMethods.size());
 
+    System.out.println("*** Call graph ***");
+    cg.forEach(n -> System.out.println(new MethodDescriptor(n.getMethod()).toString()));
+    System.out.println("*** End - Call graph ***");
 
-	  System.out.println("building call graph...");
-	  CallGraph cg = builder.makeCallGraph(options, null);
-	  System.out.println("done! " + cg.getNumberOfNodes());
-	  Set<String> allMethods = new HashSet<String>();
-	  cg.forEach(n -> processMethod(allMethods, n, cha, cg));
-	  System.out.println("number of methods: " + allMethods.size());
+    Util.dumpCG(((SSAPropagationCallGraphBuilder) builder).getCFAContextInterpreter(), builder.getPointerAnalysis(), cg);
 
-	  System.out.println("*** Call graph ***");
-	  cg.forEach(n -> System.out.println(new MethodDescriptor(n.getMethod()).toString()));
-	  System.out.println("*** End - Call graph ***");
-
-	  return allMethods;
+    return allMethods;
   }
 
-  private static void processMethod(Set<String> allMethods, CGNode n, IClassHierarchy cha, CallGraph cg) {
-    IMethod m = n.getMethod();
-    String desc = new MethodDescriptor(m).toString();
-    allMethods.add(desc);
-    allMethods.addAll(MethodUtil.getSuperMethods(m,cha));
+  static class UnknownAttributeException extends Exception {
+    private static final long serialVersionUID = 8845177787110364793L;
 
-    // Process for call sites
-    n.iterateCallSites().forEachRemaining(call -> {
-      if (call.getDeclaredTarget().equals(MethodReference.JavaLangClassNewInstance)) {
-        Set<CGNode> targets = cg.getPossibleTargets(n, call);
-        if (targets.isEmpty()) {
-          System.out.println(" BOGUS New Instance, node: " + n + " call: " + call);
-        }
-        if (targets.size() == 1 && targets.iterator().next().getContext().equals(Everywhere.EVERYWHERE)) {
-        	System.out.println(" BOGUS New Instance with generic target, node: " + n + " call: " + call);
-        }
-      }
-      
-      if (call.getDeclaredTarget().equals(MethodReference.JavaLangClassForName)) {
-          Set<CGNode> targets = cg.getPossibleTargets(n, call);
-          if (targets.isEmpty()) {
-            System.out.println(" BOGUS For Name, node: " + n + " call: " + call);
-          }
-          if (targets.size() == 1 && targets.iterator().next().getContext().equals(Everywhere.EVERYWHERE)) {
-          	System.out.println(" BOGUS For Name with generic target, node: " + n + " call: " + call);
-          }
-        }
-    });
+    UnknownAttributeException(String t) {
+      super("Attribute '" + t + "' not understood");
+    }
   }
-
-	private static final String EXCLUSIONS = "java/awt/.*\n" +
-		"javax/swing/.*\n" +
-		"sun/awt/.*\n" +
-		"sun/swing/.*\n" +
-		"com/sun/.*\n" +
-		"sun/.*\n" +
-		"org/netbeans/.*\n" +
-		"org/openide/.*\n" +
-		"com/ibm/crypto/.*\n" +
-		"com/ibm/security/.*\n" +
-		"org/apache/xerces/.*\n" +
-		"java/security/.*\n" +
-		"jdk/.*\n" +
-		"";
-
-	public static void addDefaultExclusions(AnalysisScope scope) throws UnsupportedEncodingException, IOException {
-		scope.setExclusions(new FileOfClasses(new ByteArrayInputStream(EXCLUSIONS.getBytes("UTF-8"))));
-	}
-
 }
