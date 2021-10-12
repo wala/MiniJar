@@ -341,6 +341,7 @@ public class MiniJar {
 
     AnalysisCache cache = new AnalysisCacheImpl();
     CallGraphBuilder builder = Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
+            //Util.makeZeroCFABuilder(Language.JAVA, options, cache, cha, scope);
 
     options.setSelector(
         new ClassTargetSelector() {
@@ -420,9 +421,7 @@ public class MiniJar {
     System.out.println(cg);
     System.out.println("*** End - Call graph ***");
 
-    /*
-    Util.dumpCG(((SSAPropagationCallGraphBuilder) builder).getCFAContextInterpreter(), builder.getPointerAnalysis(), cg);
-    */
+    //Util.dumpCG(((SSAPropagationCallGraphBuilder) builder).getCFAContextInterpreter(), builder.getPointerAnalysis(), cg);
 
     return allMethods;
   }
