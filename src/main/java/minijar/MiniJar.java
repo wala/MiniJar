@@ -184,7 +184,8 @@ public class MiniJar {
     IMethod m = n.getMethod();
     String desc = new MethodDescriptor(m).toString();
     allMethods.add(desc);
-    allMethods.addAll(MethodUtil.getSuperMethods(m, cha));
+    Set<String> superMethods = MethodUtil.getSuperMethods(m, cha);
+    allMethods.addAll(superMethods);
 
     // Process for call sites
     n.iterateCallSites()
@@ -403,11 +404,25 @@ public class MiniJar {
     cg.forEach(n -> processMethod(allMethods, n, cha, cg));
     System.out.println("number of methods: " + allMethods.size());
 
+    cg.forEach(n -> {
+      for(IClass iface : n.getMethod().getDeclaringClass().getAllImplementedInterfaces()) {
+        for(IClass impl : cha.getImplementors(iface.getReference())) {
+          IMethod otherMethod = impl.getMethod(n.getMethod().getSelector());
+          if (otherMethod != null) {
+            MethodDescriptor desc = new MethodDescriptor(otherMethod);
+            allMethods.add(desc.toString());
+          }
+        }
+      }
+    });
+
     System.out.println("*** Call graph ***");
-    cg.forEach(n -> System.out.println(new MethodDescriptor(n.getMethod()).toString()));
+    System.out.println(cg);
     System.out.println("*** End - Call graph ***");
 
+    /*
     Util.dumpCG(((SSAPropagationCallGraphBuilder) builder).getCFAContextInterpreter(), builder.getPointerAnalysis(), cg);
+    */
 
     return allMethods;
   }
