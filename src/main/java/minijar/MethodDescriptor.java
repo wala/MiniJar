@@ -77,7 +77,7 @@ public class MethodDescriptor {
         String desc = toString();
   
         // If this method is a static initializer for a class, just include it for now
-        if (desc.contains("$static$")) {
+        if (desc.contains("$static$") || desc.contains("<clinit>") ||  desc.contains("values")  || desc.contains("<init>")) {
             System.out.println("Reachable because static initializer: " + desc);
             return true;
         }
